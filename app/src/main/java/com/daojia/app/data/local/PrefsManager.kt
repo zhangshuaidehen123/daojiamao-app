@@ -1,138 +1,93 @@
 package com.daojia.app.data.local
 
 import android.content.Context
-import android.content.SharedPreferences
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.booleanPreferencesKey
+import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.preferencesDataStore
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.runBlocking
+
+private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "daojia_prefs")
 
 /**
- * SharedPreferences封装 - 本地配置管理
+ * 偏好设置管理器
  *
- * 管理：服务器地址、Cookie、版本号等本地配置
- * 预留扩展：可迁移至DataStore或Room
+ * 管理应用的全局配置：
+ * - 服务器地址（默认已内置）
+ * - Cookie内容
+ * - 其他持久化数据
  */
-class PrefsManager(context: Context) {
+class PrefsManager(private val context: Context) {
 
     companion object {
-        private const val PREFS_NAME = "daojia_prefs"
+        // 默认服务器地址（内置）
+        const val DEFAULT_SERVER_URL = "http://10.0.2.2:5000"
 
-        // 配置Key
-        private const val KEY_SERVER_URL = "server_url"
-        private const val KEY_COOKIE_CONTENT = "cookie_content"
-        private const val KEY_VERSION_CODE = "version_code"
-        private const val KEY_VERSION_NAME = "version_name"
-        private const val KEY_LAST_UPDATE_CHECK = "last_update_check"
-
-        // 默认值
-        const val DEFAULT_SERVER_URL = "https://your-server.com"
-        const val DEFAULT_COOKIE = ""
+        private val SERVER_URL_KEY = stringPreferencesKey("server_url")
+        private val COOKIE_CONTENT_KEY = stringPreferencesKey("cookie_content")
+        private val COOKIE_VALID_KEY = booleanPreferencesKey("cookie_valid")
     }
 
-    private val prefs: SharedPreferences =
-        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-
-    // ==================== 服务器地址 ====================
-
     /**
-     * 获取服务器地址
+     * 服务器地址（带默认值）
      */
     var serverUrl: String
-        get() = prefs.getString(KEY_SERVER_URL, DEFAULT_SERVER_URL) ?: DEFAULT_SERVER_URL
-        set(value) = prefs.edit().putString(KEY_SERVER_URL, value).apply()
-
-    // ==================== Cookie管理 ====================
+        get() = runBlocking {
+            context.dataStore.data.map { prefs ->
+                prefs[SERVER_URL_KEY] ?: DEFAULT_SERVER_URL
+            }.first()
+        }
+        set(value) {
+            runBlocking {
+                context.dataStore.edit { prefs ->
+                    prefs[SERVER_URL_KEY] = value
+                }
+            }
+        }
 
     /**
-     * 获取Cookie内容
+     * Cookie内容
      */
     var cookieContent: String
-        get() = prefs.getString(KEY_COOKIE_CONTENT, DEFAULT_COOKIE) ?: DEFAULT_COOKIE
-        set(value) = prefs.edit().putString(KEY_COOKIE_CONTENT, value).apply()
+        get() = runBlocking {
+            context.dataStore.data.map { prefs ->
+                prefs[COOKIE_CONTENT_KEY] ?: ""
+            }.first()
+        }
+        set(value) {
+            runBlocking {
+                context.dataStore.edit { prefs ->
+                    prefs[COOKIE_CONTENT_KEY] = value
+                }
+            }
+        }
 
     /**
-     * Cookie是否有效（简单判断非空）
+     * Cookie是否有效
      */
-    val isCookieValid: Boolean
-        get() = cookieContent.isNotBlank()
-
-    // ==================== 版本信息 ====================
+    var isCookieValid: Boolean
+        get() = runBlocking {
+            context.dataStore.data.map { prefs ->
+                prefs[COOKIE_VALID_KEY] ?: false
+            }.first()
+        }
+        set(value) {
+            runBlocking {
+                context.dataStore.edit { prefs ->
+                    prefs[COOKIE_VALID_KEY] = value
+                }
+            }
+        }
 
     /**
-     * 获取本地版本号
+     * 重置为默认服务器地址
      */
-    var versionCode: Int
-        get() = prefs.getInt(KEY_VERSION_CODE, 1)
-        set(value) = prefs.edit().putInt(KEY_VERSION_CODE, value).apply()
-
-    /**
-     * 获取本地版本名
-     */
-    var versionName: String
-        get() = prefs.getString(KEY_VERSION_NAME, "1.0.0") ?: "1.0.0"
-        set(value) = prefs.edit().putString(KEY_VERSION_NAME, value).apply()
-
-    // ==================== 更新检查 ====================
-
-    /**
-     * 获取上次更新检查时间戳
-     */
-    var lastUpdateCheck: Long
-        get() = prefs.getLong(KEY_LAST_UPDATE_CHECK, 0)
-        set(value) = prefs.edit().putLong(KEY_LAST_UPDATE_CHECK, value).apply()
-
-    // ==================== 通用方法 ====================
-
-    /**
-     * 保存字符串
-     */
-    fun putString(key: String, value: String) {
-        prefs.edit().putString(key, value).apply()
-    }
-
-    /**
-     * 读取字符串
-     */
-    fun getString(key: String, defaultValue: String = ""): String {
-        return prefs.getString(key, defaultValue) ?: defaultValue
-    }
-
-    /**
-     * 保存整数
-     */
-    fun putInt(key: String, value: Int) {
-        prefs.edit().putInt(key, value).apply()
-    }
-
-    /**
-     * 读取整数
-     */
-    fun getInt(key: String, defaultValue: Int = 0): Int {
-        return prefs.getInt(key, defaultValue)
-    }
-
-    /**
-     * 保存布尔值
-     */
-    fun putBoolean(key: String, value: Boolean) {
-        prefs.edit().putBoolean(key, value).apply()
-    }
-
-    /**
-     * 读取布尔值
-     */
-    fun getBoolean(key: String, defaultValue: Boolean = false): Boolean {
-        return prefs.getBoolean(key, defaultValue)
-    }
-
-    /**
-     * 清除所有配置
-     */
-    fun clearAll() {
-        prefs.edit().clear().apply()
-    }
-
-    /**
-     * 移除指定配置
-     */
-    fun remove(key: String) {
-        prefs.edit().remove(key).apply()
+    fun resetToDefaultServer() {
+        serverUrl = DEFAULT_SERVER_URL
     }
 }
