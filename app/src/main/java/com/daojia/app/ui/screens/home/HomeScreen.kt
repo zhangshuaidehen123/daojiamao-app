@@ -15,7 +15,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.daojia.app.DjApp
 import com.daojia.app.ui.theme.*
-import kotlinx.coroutines.launch
 
 /**
  * 首页快捷操作数据
