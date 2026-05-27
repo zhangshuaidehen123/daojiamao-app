@@ -2,7 +2,6 @@ package com.daojia.app.ui.screens.order
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
@@ -33,6 +32,7 @@ import kotlinx.coroutines.launch
  * 所有选项都通过选择器完成，只有手机号和地址需要手动输入
  */
 @Composable
+@OptIn(ExperimentalLayoutApi::class)
 fun CategoryOrderScreen(onBack: () -> Unit = {}) {
     var currentStep by remember { mutableIntStateOf(0) }
 
@@ -163,10 +163,10 @@ fun CategoryOrderScreen(onBack: () -> Unit = {}) {
                             // 规格选择（FilterChip）
                             Text("选择规格：", fontWeight = FontWeight.Medium)
                             Spacer(modifier = Modifier.height(8.dp))
-                            FlowRow(
+                            Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                verticalArrangement = Arrangement.spacedBy(4.dp)
+                                flexWrap = androidx.compose.foundation.layout.FlexWrap.Wrap
                             ) {
                                 selectedCategory!!.specs.forEach { spec ->
                                     FilterChip(
