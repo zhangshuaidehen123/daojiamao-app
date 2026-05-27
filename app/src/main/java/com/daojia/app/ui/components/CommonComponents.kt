@@ -5,6 +5,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
 /**
@@ -140,7 +141,7 @@ fun ConfirmDialog(
 @Composable
 fun SpacedColumn(
     modifier: Modifier = Modifier,
-    verticalSpacing: dp = 8.dp,
+    verticalSpacing: Dp = 8.dp,
     content: @Composable ColumnScope.() -> Unit
 ) {
     Column(modifier = modifier) {
