@@ -2,156 +2,212 @@ package com.daojia.app.data.api
 
 import kotlinx.serialization.Serializable
 
-// ==================== 通用响应 ====================
-
 /**
- * 统一API响应封装
+ * API数据模型
  */
+
+// ==================== 通用响应包装 ====================
 @Serializable
 data class ApiResponse<T>(
-    val code: Int = 0,
-    val message: String = "",
-    val data: T? = null
+    val code: Int,
+    val data: T? = null,
+    val message: String = ""
 )
 
-/**
- * 统一Result封装（用于内部传递）
- */
+// ==================== 结果封装 ====================
 sealed class Result<out T> {
     data class Success<T>(val data: T) : Result<T>()
     data class Error(val message: String, val code: Int = -1) : Result<Nothing>()
     object Loading : Result<Nothing>()
 }
 
-// ==================== 版本更新 ====================
-
-@Serializable
-data class UpdateInfo(
-    val version_code: Int = 0,
-    val version_name: String = "",
-    val update_content: String = "",
-    val apk_url: String = "",
-    val force_update: Boolean = false
-)
-
-// ==================== 套餐相关 ====================
-
+// ==================== 套餐信息 ====================
 @Serializable
 data class PackageInfo(
-    val package_id: String = "",
-    val package_name: String = "",
-    val price: Double = 0.0,
-    val duration: Int = 0,        // 服务时长（分钟）
-    val description: String = ""
+    val combo_id: String,
+    val combo_name: String,
+    val remaining_count: Int,
+    val total_count: Int,
+    val expire_date: String
 )
 
 @Serializable
 data class PackageListResponse(
-    val packages: List<PackageInfo> = emptyList()
+    val packages: List<PackageInfo>
 )
 
-// ==================== 地址相关 ====================
-
+// ==================== 地址信息 ====================
 @Serializable
 data class AddressInfo(
-    val address_id: String = "",
-    val address: String = "",
-    val city: String = "",
-    val district: String = "",
-    val detail: String = "",
-    val contact_name: String = "",
-    val contact_phone: String = "",
-    val is_default: Boolean = false
+    val address_id: String,
+    val address: String,
+    val contact_name: String,
+    val contact_phone: String,
+    val is_default: Boolean
 )
 
 @Serializable
 data class AddressListResponse(
-    val addresses: List<AddressInfo> = emptyList()
+    val addresses: List<AddressInfo>
 )
 
-// ==================== 保洁师相关 ====================
-
+// ==================== 保洁师信息 ====================
 @Serializable
 data class WorkerInfo(
-    val worker_id: String = "",
-    val worker_name: String = "",
-    val phone: String = "",
+    val worker_id: String,
+    val worker_name: String,
+    val phone: String,
     val rating: Double = 0.0,
     val order_count: Int = 0,
-    val available: Boolean = false
+    val available: Boolean = true
 )
 
 @Serializable
 data class WorkerListResponse(
-    val workers: List<WorkerInfo> = emptyList()
+    val workers: List<WorkerInfo>
 )
 
-// ==================== 订单相关 ====================
-
+// ==================== 订单信息 ====================
 @Serializable
 data class OrderInfo(
-    val order_id: String = "",
-    val order_no: String = "",
-    val phone: String = "",
-    val package_name: String = "",
-    val address: String = "",
-    val worker_name: String = "",
-    val service_time: String = "",
-    val status: Int = 0,           // 0-待分配 1-已分配 2-进行中 3-已完成 4-已取消
-    val status_text: String = "",
-    val amount: Double = 0.0,
-    val cash_amount: Double = 0.0,
-    val create_time: String = "",
-    val order_type: Int = 0         // 0-单次单 1-周期单
+    val order_no: String,
+    val phone: String,
+    val package_name: String,
+    val address: String,
+    val worker_name: String,
+    val service_time: String,
+    val status: Int,
+    val status_text: String,
+    val amount: Double,
+    val cash_amount: Double,
+    val create_time: String,
+    val order_type: Int
 )
 
 @Serializable
 data class OrderListResponse(
-    val orders: List<OrderInfo> = emptyList(),
-    val total: Int = 0
+    val orders: List<OrderInfo>
 )
 
+// ==================== 下单请求/响应 ====================
 @Serializable
 data class CreateOrderRequest(
-    val phone: String = "",
-    val package_id: String = "",
-    val address_id: String = "",
-    val address: String = "",
-    val assign_type: Int = 0,       // 0-随机 1-指定
-    val worker_id: String = "",
-    val service_time: String = "",
-    val order_type: Int = 0,        // 0-单次单 1-周期单
-    val cycle_days: List<Int> = emptyList(), // 周期单的星期几
-    val cookie: String = ""
+    val mobile: String,
+    val address: String,
+    val service_time: String,
+    val package_id: String? = null,
+    val worker_id: String? = null,
+    val remark: String? = null
 )
 
 @Serializable
 data class CreateOrderResponse(
-    val order_id: String = "",
-    val order_no: String = ""
+    val order_id: String,
+    val order_no: String,
+    val status: String
+)
+
+// ==================== 品类订单 ====================
+@Serializable
+data class CategoryOrderRequest(
+    val mobile: String,
+    val address: String,
+    val service_type: String,
+    val spec_text: String,
+    val service_time: String,
+    val assign_mode: String = "auto",
+    val seller_mobile: String? = null,
+    val detail_text: String? = null,
+    val location: String? = null,
+    val coupon_id: String? = null
+)
+
+@Serializable
+data class CategoryInfo(
+    val name: String,
+    val service_id: String,
+    val spu_code: String,
+    val default_duration: Int,
+    val specs: List<String>,
+    val unit: String,
+    val description: String
+)
+
+// ==================== 套餐订单 ====================
+@Serializable
+data class ComboSingleRequest(
+    val combo_id: String,
+    val seller_id: String,
+    val service_info_id: String,
+    val service_time: String
+)
+
+@Serializable
+data class ComboCycleRequest(
+    val combo_id: String,
+    val seller_id: String,
+    val service_info_id: String,
+    val week_type: String,
+    val server_time_cycles: String,
+    val begin_server_time: String
 )
 
 // ==================== 现金结算 ====================
-
 @Serializable
 data class CashSettleInfo(
-    val order_id: String = "",
-    val order_no: String = "",
-    val cash_amount: Double = 0.0,
-    val status: Int = 0,
-    val status_text: String = ""
+    val order_no: String,
+    val cash_amount: Double,
+    val status: Int,
+    val status_text: String
 )
 
 @Serializable
 data class CashSettleResponse(
-    val success: Boolean = false,
-    val message: String = ""
+    val success: Boolean,
+    val message: String
 )
 
-// ==================== Cookie验证 ====================
-
+// ==================== Cookie状态 ====================
 @Serializable
 data class CookieStatus(
-    val valid: Boolean = false,
-    val message: String = ""
+    val valid: Boolean,
+    val user_name: String = ""
+)
+
+// ==================== 更新信息 ====================
+@Serializable
+data class UpdateInfo(
+    val version_code: Int,
+    val version_name: String,
+    val update_content: String,
+    val apk_url: String,
+    val force_update: Boolean
+)
+
+// ==================== 周期查询 ====================
+@Serializable
+data class CycleQueryRequest(
+    val seller_id: String,
+    val mobile: String,
+    val week_type: String = "1"
+)
+
+@Serializable
+data class CycleInfo(
+    val available_weeks: List<String>,
+    val first_service_times: List<String>
+)
+
+// ==================== 订单详情 ====================
+@Serializable
+data class OrderDetailResponse(
+    val order_no: String,
+    val mobile: String,
+    val address: String,
+    val service_type: String,
+    val service_time: String,
+    val worker_name: String,
+    val worker_mobile: String,
+    val status: String,
+    val amount: Double
 )
