@@ -279,10 +279,9 @@ class ApiClient {
                     val response = json.decodeFromString<ApiResponse<Map<String, String>>>(result.data)
                     if (response.code == 0 && response.data != null) {
                         Result.Success(WorkerInfo(
-                            sellerId = response.data["seller_id"] ?: "",
-                            sellerName = "",
-                            mobile = mobile,
-                            status = "",
+                            worker_id = response.data["seller_id"] ?: "",
+                            worker_name = "",
+                            phone = mobile,
                         ))
                     } else {
                         Result.Error(response.message)
