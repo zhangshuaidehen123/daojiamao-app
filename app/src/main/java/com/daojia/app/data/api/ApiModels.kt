@@ -24,11 +24,14 @@ sealed class Result<out T> {
 // ==================== 套餐信息 ====================
 @Serializable
 data class PackageInfo(
-    val combo_id: String,
-    val combo_name: String,
+    val package_id: String,
+    val package_name: String,
     val remaining_count: Int,
     val total_count: Int,
-    val expire_date: String
+    val expire_date: String,
+    val description: String = "",
+    val duration: Int = 0,
+    val price: Double = 0.0
 )
 
 @Serializable
@@ -41,9 +44,10 @@ data class PackageListResponse(
 data class AddressInfo(
     val address_id: String,
     val address: String,
-    val contact_name: String,
-    val contact_phone: String,
-    val is_default: Boolean
+    val detail: String = "",
+    val contact_name: String = "",
+    val contact_phone: String = "",
+    val is_default: Boolean = false
 )
 
 @Serializable
@@ -92,12 +96,15 @@ data class OrderListResponse(
 // ==================== 下单请求/响应 ====================
 @Serializable
 data class CreateOrderRequest(
-    val mobile: String,
+    val phone: String,
+    val package_id: String,
+    val address_id: String,
     val address: String,
+    val assign_type: Int,
+    val worker_id: String,
     val service_time: String,
-    val package_id: String? = null,
-    val worker_id: String? = null,
-    val remark: String? = null
+    val order_type: Int,
+    val cookie: String
 )
 
 @Serializable
