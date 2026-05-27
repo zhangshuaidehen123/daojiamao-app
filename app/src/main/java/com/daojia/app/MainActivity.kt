@@ -20,10 +20,7 @@ class MainActivity : ComponentActivity() {
             DaojiaAppTheme {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
                     val navController = rememberNavController()
-                    AppNavGraph(
-                        navController = navController,
-                        modifier = Modifier.padding(innerPadding)
-                    )
+                    AppNavGraph(navController = navController)
                 }
             }
         }
