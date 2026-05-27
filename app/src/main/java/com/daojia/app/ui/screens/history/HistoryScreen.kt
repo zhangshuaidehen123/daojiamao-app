@@ -18,6 +18,7 @@ import com.daojia.app.data.api.OrderInfo
 import com.daojia.app.data.api.Result
 import com.daojia.app.data.repository.OrderRepository
 import com.daojia.app.ui.theme.*
+import kotlinx.coroutines.launch
 
 /**
  * 订单历史页 - 查询和展示订单列表
@@ -32,6 +33,7 @@ fun HistoryScreen() {
     var selectedOrder by remember { mutableStateOf<OrderInfo?>(null) }
 
     val repository = remember { OrderRepository() }
+    val scope = rememberCoroutineScope()
 
     // 搜索订单
     fun searchOrders() {
@@ -41,7 +43,7 @@ fun HistoryScreen() {
             return
         }
 
-        kotlinx.coroutines.MainScope().launch {
+        scope.launch {
             isLoading = true
             errorMessage = null
             when (val result = repository.queryOrders(phone)) {
