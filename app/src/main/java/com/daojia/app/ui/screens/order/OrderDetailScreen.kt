@@ -186,9 +186,9 @@ fun OrderDetailScreen(onBack: () -> Unit = {}) {
                 Spacer(modifier = Modifier.height(16.dp))
 
                 // 复制按钮
+                val clipboard = androidx.compose.ui.platform.LocalClipboardManager.current
                 OutlinedButton(
                     onClick = {
-                        val clipboard = androidx.compose.ui.platform.LocalClipboardManager.current
                         clipboard.setText(androidx.compose.ui.text.AnnotatedString(mobile))
                     },
                     modifier = Modifier.fillMaxWidth()
