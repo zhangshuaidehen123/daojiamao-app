@@ -376,14 +376,17 @@ fun CategoryOrderScreen(onBack: () -> Unit = {}) {
                                         serviceDate
                                     }
                                     val request = CategoryOrderRequest(
+                                        categoryId = selectedCategory!!.id,
+                                        categoryName = selectedCategory!!.name,
+                                        spec = selectedSpec,
+                                        quantity = selectedQuantity,
                                         mobile = mobile,
                                         address = address,
-                                        service_type = selectedCategory!!.service_id,
-                                        spec_text = selectedSpec,
-                                        service_time = serviceTimeStr,
-                                        assign_mode = assignMode,
-                                        seller_mobile = if (assignMode == "manual") sellerMobile else null,
-                                        detail_text = detailText.takeIf { it.isNotBlank() }
+                                        serviceDate = serviceDate,
+                                        serviceTime = serviceTimeStr,
+                                        assignMode = assignMode,
+                                        sellerMobile = if (assignMode == "manual") sellerMobile else null,
+                                        remark = detailText.takeIf { it.isNotBlank() }
                                     )
                                     when (val result = api.createCategoryOrder(request)) {
                                         is Result.Success -> {
@@ -549,7 +552,7 @@ private fun CategoryCard(
             )
             Spacer(modifier = Modifier.height(4.dp))
             Text(
-                text = category.description,
+                text = category.desc,
                 style = MaterialTheme.typography.bodySmall,
                 color = TextSecondary,
                 textAlign = TextAlign.Center,
