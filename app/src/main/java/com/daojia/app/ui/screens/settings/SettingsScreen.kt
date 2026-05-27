@@ -17,7 +17,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import com.daojia.app.DjApp
-import com.daojia.app.R
 import com.daojia.app.data.api.Result
 import com.daojia.app.data.api.UpdateInfo
 import com.daojia.app.ui.theme.*
