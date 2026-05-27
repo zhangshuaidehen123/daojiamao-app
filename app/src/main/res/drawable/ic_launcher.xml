@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="48dp"
+    android:height="48dp"
+    android:viewportWidth="48"
+    android:viewportHeight="48">
+    <!-- 蓝色圆形背景 -->
+    <path
+        android:fillColor="#1976D2"
+        android:pathData="M24,24m-22,0a22,22 0,1,1,44,0a22,22 0,1,1,-44,0" />
+    <!-- 白色房子图标 -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M24,10L12,20h4v12h6v-8h4v8h6v-12h4L24,10z" />
+</vector>
