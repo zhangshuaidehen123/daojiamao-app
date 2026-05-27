@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- 背景圆形 -->
+    <path
+        android:fillColor="#1976D2"
+        android:pathData="M54,54m-40,0a40,40 0,1 1,80 0a40,40 0,1 1,-80 0" />
+    <!-- 房子图标 -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M54,30L30,50h8v20h12V55h8v15h12V50h8L54,30z" />
+    <!-- 闪光效果 -->
+    <path
+        android:fillColor="#42A5F5"
+        android:pathData="M70,35l3,6 6,3 -6,3 -3,6 -3,-6 -6,-3 6,-3z" />
+</vector>
