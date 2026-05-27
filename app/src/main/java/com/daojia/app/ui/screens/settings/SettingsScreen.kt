@@ -10,8 +10,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -23,6 +21,7 @@ import com.daojia.app.data.api.Result
 import com.daojia.app.data.api.UpdateInfo
 import com.daojia.app.ui.theme.*
 import com.daojia.app.util.UpdateChecker
+import kotlinx.coroutines.launch
 
 /**
  * 设置页
@@ -39,6 +38,7 @@ import com.daojia.app.util.UpdateChecker
 fun SettingsScreen() {
     val context = LocalContext.current
     val prefsManager = DjApp.instance.prefsManager
+    val scope = rememberCoroutineScope()
 
     // 服务器地址
     var serverUrl by remember { mutableStateOf(prefsManager.serverUrl) }
@@ -59,14 +59,10 @@ fun SettingsScreen() {
     val versionName = "1.0.0"
     val versionCode = 1
 
-    // 检查更新
-    fun LaunchedEffect(Unit) {
-     LaunchedEffect(Unit) {
-     checkUpdate()
- }
- } {
-        isCheckingUpdate = true
-        kotlinx.coroutines.MainScope().launch {
+    // 检查更新函数
+    fun checkUpdate() {
+        scope.launch {
+            isCheckingUpdate = true
             when (val result = UpdateChecker.checkUpdate()) {
                 is Result.Success -> {
                     if (result.data.version_code > versionCode) {
