@@ -17,6 +17,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import com.daojia.app.DjApp
+import com.daojia.app.data.api.ApiClient
 import com.daojia.app.data.api.Result
 import com.daojia.app.data.api.UpdateInfo
 import com.daojia.app.ui.theme.*
@@ -39,6 +40,7 @@ fun SettingsScreen() {
     val context = LocalContext.current
     val prefsManager = DjApp.instance.prefsManager
     val scope = rememberCoroutineScope()
+    val api = remember { ApiClient.instance }
 
     // 服务器地址
     var serverUrl by remember { mutableStateOf(prefsManager.serverUrl) }
@@ -47,8 +49,10 @@ fun SettingsScreen() {
 
     // Cookie
     var cookieContent by remember { mutableStateOf(prefsManager.cookieContent) }
+    var cookieStatus by remember { mutableStateOf(if (prefsManager.isCookieValid) "有效" else "无效/未配置") }
     var showCookieDialog by remember { mutableStateOf(false) }
     var cookieInput by remember { mutableStateOf(prefsManager.cookieContent) }
+    var isValidatingCookie by remember { mutableStateOf(false) }
 
     // 更新
     var isCheckingUpdate by remember { mutableStateOf(false) }
@@ -78,6 +82,35 @@ fun SettingsScreen() {
                 is Result.Loading -> {}
             }
             isCheckingUpdate = false
+        }
+    }
+
+    // 验证Cookie函数
+    fun validateAndSaveCookie(newCookie: String) {
+        scope.launch {
+            isValidatingCookie = true
+            // 先保存Cookie
+            prefsManager.cookieContent = newCookie
+            cookieContent = newCookie
+
+            // 调用API验证
+            when (val result = api.checkCookie()) {
+                is Result.Success -> {
+                    // 验证成功
+                    prefsManager.isCookieValid = true
+                    cookieStatus = "有效"
+                    Toast.makeText(context, "Cookie已更新并验证有效", Toast.LENGTH_SHORT).show()
+                }
+                is Result.Error -> {
+                    // 验证失败，但已保存
+                    prefsManager.isCookieValid = false
+                    cookieStatus = "无效/未配置"
+                    Toast.makeText(context, "Cookie已保存，但验证失败：${result.message}", Toast.LENGTH_LONG).show()
+                }
+                is Result.Loading -> {}
+            }
+            isValidatingCookie = false
+            showCookieDialog = false
         }
     }
 
@@ -116,9 +149,28 @@ fun SettingsScreen() {
             SettingCard(
                 icon = Icons.Default.Cookie,
                 title = "Cookie状态",
-                subtitle = if (prefsManager.isCookieValid) "有效" else "无效/未配置",
-                subtitleColor = if (prefsManager.isCookieValid) Success else Error,
-                onClick = { /* 可扩展：验证Cookie */ }
+                subtitle = if (isValidatingCookie) "验证中..." else cookieStatus,
+                subtitleColor = if (cookieStatus == "有效") Success else Error,
+                onClick = {
+                    // 手动验证Cookie
+                    scope.launch {
+                        isValidatingCookie = true
+                        when (val result = api.checkCookie()) {
+                            is Result.Success -> {
+                                prefsManager.isCookieValid = true
+                                cookieStatus = "有效"
+                                Toast.makeText(context, "Cookie验证有效", Toast.LENGTH_SHORT).show()
+                            }
+                            is Result.Error -> {
+                                prefsManager.isCookieValid = false
+                                cookieStatus = "无效"
+                                Toast.makeText(context, "Cookie验证失败：${result.message}", Toast.LENGTH_SHORT).show()
+                            }
+                            is Result.Loading -> {}
+                        }
+                        isValidatingCookie = false
+                    }
+                }
             )
 
             SettingCard(
@@ -211,29 +263,40 @@ fun SettingsScreen() {
             onDismissRequest = { showCookieDialog = false },
             title = { Text(text = "更新Cookie") },
             text = {
-                OutlinedTextField(
-                    value = cookieInput,
-                    onValueChange = { cookieInput = it },
-                    label = { Text("Cookie内容") },
-                    placeholder = { Text("请粘贴Cookie内容") },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(120.dp),
-                    visualTransformation = PasswordVisualTransformation()
-                )
+                Column {
+                    OutlinedTextField(
+                        value = cookieInput,
+                        onValueChange = { cookieInput = it },
+                        label = { Text("Cookie内容") },
+                        placeholder = { Text("请粘贴Cookie内容") },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(120.dp),
+                        visualTransformation = PasswordVisualTransformation()
+                    )
+                    if (isValidatingCookie) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            CircularProgressIndicator(modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("正在验证Cookie...", color = TextSecondary)
+                        }
+                    }
+                }
             },
             confirmButton = {
-                TextButton(onClick = {
-                    prefsManager.cookieContent = cookieInput
-                    cookieContent = cookieInput
-                    Toast.makeText(context, "Cookie已更新", Toast.LENGTH_SHORT).show()
-                    showCookieDialog = false
-                }) {
-                    Text(text = "保存")
+                TextButton(
+                    onClick = { validateAndSaveCookie(cookieInput) },
+                    enabled = cookieInput.isNotBlank() && !isValidatingCookie
+                ) {
+                    Text(text = "保存并验证")
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showCookieDialog = false }) {
+                TextButton(
+                    onClick = { showCookieDialog = false },
+                    enabled = !isValidatingCookie
+                ) {
                     Text(text = "取消")
                 }
             }
