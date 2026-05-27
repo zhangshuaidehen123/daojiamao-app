@@ -17,6 +17,7 @@ import com.daojia.app.data.api.CashSettleInfo
 import com.daojia.app.data.api.Result
 import com.daojia.app.data.repository.OrderRepository
 import com.daojia.app.ui.theme.*
+import kotlinx.coroutines.launch
 
 /**
  * 现金结算页
@@ -40,6 +41,7 @@ fun CashSettleScreen(
     var hasQueried by remember { mutableStateOf(false) }
 
     val repository = remember { OrderRepository() }
+    val scope = rememberCoroutineScope()
 
     // 查询现金信息
     fun queryCashInfo() {
@@ -49,7 +51,7 @@ fun CashSettleScreen(
             return
         }
 
-        kotlinx.coroutines.MainScope().launch {
+        scope.launch {
             isLoading = true
             errorMessage = null
             cashInfo = null
@@ -72,7 +74,7 @@ fun CashSettleScreen(
         val no = orderNo.trim()
         if (no.isBlank()) return
 
-        kotlinx.coroutines.MainScope().launch {
+        scope.launch {
             isSettling = true
             errorMessage = null
             when (val result = repository.settleCash(no)) {
