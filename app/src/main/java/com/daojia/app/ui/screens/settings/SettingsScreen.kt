@@ -10,6 +10,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -58,7 +60,11 @@ fun SettingsScreen() {
     val versionCode = 1
 
     // 检查更新
-    fun checkUpdate() {
+    fun LaunchedEffect(Unit) {
+     LaunchedEffect(Unit) {
+     checkUpdate()
+ }
+ } {
         isCheckingUpdate = true
         kotlinx.coroutines.MainScope().launch {
             when (val result = UpdateChecker.checkUpdate()) {
