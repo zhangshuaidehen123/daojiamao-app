@@ -10,14 +10,14 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.ui.Modifier
 import androidx.navigation.compose.rememberNavController
 import com.daojia.app.ui.navigation.AppNavGraph
-import com.daojia.app.ui.theme.DaojiaTheme
+import com.daojia.app.ui.theme.DaojiaAppTheme
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            DaojiaTheme {
+            DaojiaAppTheme {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
                     val navController = rememberNavController()
                     AppNavGraph(
