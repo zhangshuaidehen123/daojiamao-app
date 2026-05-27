@@ -186,7 +186,7 @@ private fun RowScope.StepItem(
             color = when {
                 isCompleted -> Success
                 isActive -> Primary
-                else -> Divider
+                else -> com.daojia.app.ui.theme.Divider
             },
             modifier = Modifier.size(32.dp)
         ) {
@@ -422,7 +422,7 @@ private fun Step2Content(viewModel: OrderViewModel) {
                 )
                 Spacer(modifier = Modifier.height(8.dp))
             }
-            Divider(modifier = Modifier.padding(vertical = 8.dp))
+            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
         }
 
         // 自定义地址输入
