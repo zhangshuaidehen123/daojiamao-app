@@ -222,29 +222,6 @@ class ApiClient {
         }
     }
 
-    suspend fun searchSellerByMobile(mobile: String): Result<WorkerInfo> {
-        return when (val result = get("/api/sellers/search-by-name/$mobile")) {
-            is Result.Success -> {
-                try {
-                    val response = json.decodeFromString<ApiResponse<Map<String, String>>>(result.data)
-                    if (response.code == 0 && response.data != null) {
-                        Result.Success(WorkerInfo(
-                            worker_id = response.data["seller_id"] ?: "",
-                            worker_name = "",
-                            phone = mobile,
-                        ))
-                    } else {
-                        Result.Error(response.message)
-                    }
-                } catch (e: Exception) {
-                    Result.Error("Parse error: ${e.message}")
-                }
-            }
-            is Result.Error -> result
-            is Result.Loading -> Result.Loading
-        }
-    }
-
     suspend fun queryWorkers(serviceTime: String = ""): Result<List<WorkerInfo>> {
         val params = if (serviceTime.isNotBlank()) {
             mapOf("service_time" to serviceTime)
@@ -290,27 +267,8 @@ class ApiClient {
     }
 
     // ==================== 套餐订单 ====================
-    suspend fun createSingleOrder(request: ComboSingleRequest): Result<CreateOrderResponse> {
-        return when (val result = post("/api/orders/combo/single", request)) {
-            is Result.Success -> {
-                try {
-                    val response = json.decodeFromString<ApiResponse<CreateOrderResponse>>(result.data)
-                    if (response.data != null) {
-                        Result.Success(response.data)
-                    } else {
-                        Result.Error(response.message)
-                    }
-                } catch (e: Exception) {
-                    Result.Error("Parse error: ${e.message}")
-                }
-            }
-            is Result.Error -> result
-            is Result.Loading -> Result.Loading
-        }
-    }
-
-    suspend fun createCycleOrder(request: ComboCycleRequest): Result<CreateOrderResponse> {
-        return when (val result = post("/api/orders/combo/cycle", request)) {
+    suspend fun createOrder(request: CreateOrderRequest): Result<CreateOrderResponse> {
+        return when (val result = post("/api/orders/create", request)) {
             is Result.Success -> {
                 try {
                     val response = json.decodeFromString<ApiResponse<CreateOrderResponse>>(result.data)
@@ -371,11 +329,11 @@ class ApiClient {
         }
     }
 
-    suspend fun queryOrderDetail(orderId: String): Result<OrderDetailResponse> {
+    suspend fun queryOrderDetail(orderId: String): Result<OrderInfo> {
         return when (val result = get("/api/orders/$orderId")) {
             is Result.Success -> {
                 try {
-                    val response = json.decodeFromString<ApiResponse<OrderDetailResponse>>(result.data)
+                    val response = json.decodeFromString<ApiResponse<OrderInfo>>(result.data)
                     if (response.data != null) {
                         Result.Success(response.data)
                     } else {
