@@ -1,17 +1,64 @@
 package com.daojia.app.ui.screens.order
 
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.filled.AccessTime
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.CalendarToday
+import androidx.compose.material.icons.filled.Remove
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDialog
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedCard
+import androidx.compose.material3.OutlinedIconButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TimePicker
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.rememberDatePickerState
+import androidx.compose.material3.rememberTimePickerState
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -22,46 +69,37 @@ import com.daojia.app.data.api.ApiClient
 import com.daojia.app.data.api.CategoryInfo
 import com.daojia.app.data.api.CategoryOrderRequest
 import com.daojia.app.data.api.Result
-import com.daojia.app.ui.theme.*
+import com.daojia.app.ui.theme.Error
+import com.daojia.app.ui.theme.OnPrimary
+import com.daojia.app.ui.theme.Primary
+import com.daojia.app.ui.theme.PrimaryContainer
+import com.daojia.app.ui.theme.TextHint
+import com.daojia.app.ui.theme.TextPrimary
+import com.daojia.app.ui.theme.TextSecondary
 import kotlinx.coroutines.launch
 
-/**
- * 品类订单界面
- *
- * 流程：选择服务类型 -> 选择规格+数量 -> 填写信息(手机号/地址) -> 下单
- * 所有选项都通过选择器完成，只有手机号和地址需要手动输入
- */
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun CategoryOrderScreen(onBack: () -> Unit = {}) {
     var currentStep by remember { mutableIntStateOf(0) }
-
-    // 服务类型选择
     var selectedCategory by remember { mutableStateOf<CategoryInfo?>(null) }
     var selectedSpec by remember { mutableStateOf("") }
     var selectedQuantity by remember { mutableIntStateOf(1) }
-
-    // 下单表单（只有这些需要手动输入）
     var mobile by remember { mutableStateOf("") }
     var address by remember { mutableStateOf("") }
     var assignMode by remember { mutableStateOf("auto") }
     var sellerMobile by remember { mutableStateOf("") }
     var detailText by remember { mutableStateOf("") }
-
-    // 服务时间（选择器）
     var serviceDate by remember { mutableStateOf("") }
     var serviceTime by remember { mutableStateOf("") }
     var showDatePicker by remember { mutableStateOf(false) }
     var showTimePicker by remember { mutableStateOf(false) }
-
-    // 状态
     var isLoading by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var successMessage by remember { mutableStateOf<String?>(null) }
-
     val api = remember { ApiClient.instance }
     val scope = rememberCoroutineScope()
 
-    // 内置品类列表（从源代码config.py提取）
     val categories = remember {
         listOf(
             CategoryInfo("日常保洁", "1001", "DJ_BJ_RC", 3, listOf("2小时", "3小时", "4小时"), "小时", "日常家庭保洁服务"),
@@ -112,7 +150,6 @@ fun CategoryOrderScreen(onBack: () -> Unit = {}) {
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
-            // 步骤指示器
             Surface(
                 modifier = Modifier.fillMaxWidth(),
                 color = MaterialTheme.colorScheme.surfaceVariant
@@ -127,7 +164,6 @@ fun CategoryOrderScreen(onBack: () -> Unit = {}) {
             }
 
             if (currentStep == 0) {
-                // Step 0: 选择服务类型
                 LazyVerticalGrid(
                     columns = GridCells.Fixed(2),
                     modifier = Modifier.fillMaxSize().padding(12.dp),
@@ -146,8 +182,6 @@ fun CategoryOrderScreen(onBack: () -> Unit = {}) {
                         )
                     }
                 }
-
-                // 选中后显示规格+数量选择
                 if (selectedCategory != null) {
                     Spacer(modifier = Modifier.height(8.dp))
                     Surface(
@@ -158,17 +192,14 @@ fun CategoryOrderScreen(onBack: () -> Unit = {}) {
                         Column(modifier = Modifier.padding(12.dp)) {
                             Text("已选：${selectedCategory!!.name}", fontWeight = FontWeight.Bold, color = Primary)
                             Spacer(modifier = Modifier.height(12.dp))
-
-                            // 规格选择（FilterChip）
                             Text("选择规格：", fontWeight = FontWeight.Medium)
                             Spacer(modifier = Modifier.height(8.dp))
-                            Row(
                             FlowRow(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                verticalArrangement = Arrangement.spacedBy(4.dp),
-                                maxItemsInEachRow = 4
-                            )
+                                verticalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                selectedCategory!!.specs.forEach { spec ->
                                     FilterChip(
                                         selected = selectedSpec == spec,
                                         onClick = { selectedSpec = spec },
@@ -176,28 +207,22 @@ fun CategoryOrderScreen(onBack: () -> Unit = {}) {
                                     )
                                 }
                             }
-
                             Spacer(modifier = Modifier.height(12.dp))
-
-                            // 数量选择（+/- 按钮）
                             Text("选择数量：", fontWeight = FontWeight.Medium)
                             Spacer(modifier = Modifier.height(8.dp))
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                // 减号按钮
                                 OutlinedIconButton(
                                     onClick = { if (selectedQuantity > 1) selectedQuantity-- },
                                     enabled = selectedQuantity > 1
                                 ) {
                                     Icon(Icons.Default.Remove, "减少")
                                 }
-                                // 数量显示
                                 Text(
                                     text = "$selectedQuantity ${selectedCategory!!.unit}",
                                     style = MaterialTheme.typography.titleMedium,
                                     fontWeight = FontWeight.Bold,
                                     modifier = Modifier.padding(horizontal = 20.dp)
                                 )
-                                // 加号按钮
                                 OutlinedIconButton(
                                     onClick = { if (selectedQuantity < 10) selectedQuantity++ },
                                     enabled = selectedQuantity < 10
@@ -205,7 +230,6 @@ fun CategoryOrderScreen(onBack: () -> Unit = {}) {
                                     Icon(Icons.Default.Add, "增加")
                                 }
                             }
-
                             Spacer(modifier = Modifier.height(16.dp))
                             Button(
                                 onClick = { if (selectedSpec.isNotBlank()) currentStep = 1 },
@@ -218,14 +242,12 @@ fun CategoryOrderScreen(onBack: () -> Unit = {}) {
                     }
                 }
             } else {
-                // Step 1: 填写下单信息
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(16.dp)
                         .verticalScroll(rememberScrollState())
                 ) {
-                    // 已选信息
                     Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = PrimaryContainer.copy(alpha = 0.2f))) {
                         Column(modifier = Modifier.padding(12.dp)) {
                             Text("服务：${selectedCategory?.name ?: ""}", fontWeight = FontWeight.Bold)
@@ -233,12 +255,7 @@ fun CategoryOrderScreen(onBack: () -> Unit = {}) {
                             Text("数量：$selectedQuantity ${selectedCategory?.unit ?: ""}")
                         }
                     }
-
                     Spacer(modifier = Modifier.height(16.dp))
-
-                    // ========== 需要手动输入的字段 ==========
-
-                    // 手机号（手动输入）
                     Text("客户手机号 *", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleSmall)
                     Spacer(modifier = Modifier.height(4.dp))
                     OutlinedTextField(
@@ -247,15 +264,9 @@ fun CategoryOrderScreen(onBack: () -> Unit = {}) {
                         label = { Text("请输入11位手机号") },
                         placeholder = { Text("13800138000") },
                         singleLine = true,
-                        modifier = Modifier.fillMaxWidth(),
-                        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
-                            keyboardType = androidx.compose.ui.text.input.KeyboardType.Phone
-                        )
+                        modifier = Modifier.fillMaxWidth()
                     )
-
                     Spacer(modifier = Modifier.height(12.dp))
-
-                    // 地址（手动输入）
                     Text("服务地址 *", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleSmall)
                     Spacer(modifier = Modifier.height(4.dp))
                     OutlinedTextField(
@@ -266,12 +277,7 @@ fun CategoryOrderScreen(onBack: () -> Unit = {}) {
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth()
                     )
-
                     Spacer(modifier = Modifier.height(16.dp))
-
-                    // ========== 选择器字段 ==========
-
-                    // 服务日期（日期选择器）
                     Text("服务日期", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleSmall)
                     Spacer(modifier = Modifier.height(4.dp))
                     OutlinedCard(
@@ -291,10 +297,7 @@ fun CategoryOrderScreen(onBack: () -> Unit = {}) {
                             )
                         }
                     }
-
                     Spacer(modifier = Modifier.height(12.dp))
-
-                    // 服务时间（时间选择器）
                     Text("服务时间", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleSmall)
                     Spacer(modifier = Modifier.height(4.dp))
                     OutlinedCard(
@@ -314,10 +317,7 @@ fun CategoryOrderScreen(onBack: () -> Unit = {}) {
                             )
                         }
                     }
-
                     Spacer(modifier = Modifier.height(12.dp))
-
-                    // 指派模式（选择器）
                     Text("指派模式", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleSmall)
                     Spacer(modifier = Modifier.height(8.dp))
                     Row {
@@ -333,8 +333,6 @@ fun CategoryOrderScreen(onBack: () -> Unit = {}) {
                             label = { Text("指定保洁师") }
                         )
                     }
-
-                    // 指定保洁师时输入手机号
                     if (assignMode == "assign") {
                         Spacer(modifier = Modifier.height(12.dp))
                         Text("保洁师手机号 *", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleSmall)
@@ -347,10 +345,7 @@ fun CategoryOrderScreen(onBack: () -> Unit = {}) {
                             modifier = Modifier.fillMaxWidth()
                         )
                     }
-
                     Spacer(modifier = Modifier.height(12.dp))
-
-                    // 需求详情（可选，手动输入）
                     Text("需求详情（可选）", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleSmall)
                     Spacer(modifier = Modifier.height(4.dp))
                     OutlinedTextField(
@@ -360,18 +355,13 @@ fun CategoryOrderScreen(onBack: () -> Unit = {}) {
                         modifier = Modifier.fillMaxWidth().height(80.dp),
                         maxLines = 3
                     )
-
                     Spacer(modifier = Modifier.height(20.dp))
-
-                    // 错误提示
-                    errorMessage?.let {
+                    errorMessage?.let { msg ->
                         Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Error.copy(alpha = 0.1f))) {
-                            Text(it, color = Error, modifier = Modifier.padding(12.dp), style = MaterialTheme.typography.bodySmall)
+                            Text(msg, color = Error, modifier = Modifier.padding(12.dp), style = MaterialTheme.typography.bodySmall)
                         }
                         Spacer(modifier = Modifier.height(8.dp))
                     }
-
-                    // 下单按钮
                     Button(
                         onClick = {
                             if (mobile.isBlank() || mobile.length != 11) {
@@ -401,17 +391,15 @@ fun CategoryOrderScreen(onBack: () -> Unit = {}) {
                             Text("确认下单", fontSize = 16.sp)
                         }
                     }
-
                     Spacer(modifier = Modifier.height(8.dp))
-
                     TextButton(onClick = { currentStep = 0 }) {
                         Text("上一步")
                     }
                 }
             }
         }
+    }
 
-    // 日期选择对话框
     if (showDatePicker) {
         val datePickerState = rememberDatePickerState()
         DatePickerDialog(
@@ -433,7 +421,6 @@ fun CategoryOrderScreen(onBack: () -> Unit = {}) {
         }
     }
 
-    // 时间选择对话框
     if (showTimePicker) {
         val timePickerState = rememberTimePickerState()
         AlertDialog(
@@ -454,7 +441,6 @@ fun CategoryOrderScreen(onBack: () -> Unit = {}) {
         )
     }
 
-    // 下单逻辑
     if (isLoading) {
         LaunchedEffect(Unit) {
             val timeStr = if (serviceDate.isNotBlank() && serviceTime.isNotBlank()) "$serviceDate $serviceTime" else ""
@@ -482,9 +468,8 @@ fun CategoryOrderScreen(onBack: () -> Unit = {}) {
         }
     }
 
-    // 成功提示
     if (successMessage != null) {
-        val msg = successMessage
+        val msg = successMessage!!
         AlertDialog(
             onDismissRequest = { successMessage = null },
             title = { Text("下单成功") },
@@ -511,7 +496,7 @@ fun CategoryOrderScreen(onBack: () -> Unit = {}) {
 private fun StepIndicator(step: Int, label: String, isActive: Boolean) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Surface(
-            shape = androidx.compose.foundation.shape.CircleShape,
+            shape = CircleShape,
             color = if (isActive) Primary else MaterialTheme.colorScheme.surfaceVariant,
             modifier = Modifier.size(32.dp)
         ) {
