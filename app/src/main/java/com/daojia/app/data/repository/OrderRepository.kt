@@ -6,7 +6,6 @@ import com.daojia.app.data.api.*
  * 订单数据仓库
  *
  * 封装API调用，为ViewModel提供数据接口
- * 预留本地缓存扩展（Room）
  */
 class OrderRepository {
 
@@ -85,14 +84,5 @@ class OrderRepository {
      */
     suspend fun checkCookie(): Result<CookieStatus> {
         return apiClient.checkCookie()
-    }
-
-    // ==================== 统计（预留） ====================
-
-    /**
-     * 获取今日统计
-     */
-    suspend fun getTodayStats(): Result<Map<String, Any>> {
-        return apiClient.getTodayStats()
     }
 }
