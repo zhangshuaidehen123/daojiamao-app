@@ -60,8 +60,8 @@ fun SellerSearchScreen(
             } else {
                 when (val result = ApiClient.instance.searchSellerByName(searchText.trim())) {
                     is Result.Success -> {
-                        sellers = listOf(result.data)
-                        if (result.data.worker_id.isBlank()) errorMessage = "未找到手机号为「${searchText}」的保洁师"
+                        sellers = result.data
+                        if (sellers.isEmpty()) errorMessage = "未找到手机号为「${searchText}」的保洁师"
                     }
                     is Result.Error -> errorMessage = result.message
                     is Result.Loading -> {}
