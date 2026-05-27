@@ -5,8 +5,6 @@ import com.daojia.app.data.local.PrefsManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.encodeToJsonElement
-import kotlinx.serialization.serializer
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -92,8 +90,7 @@ class ApiClient {
     }
 
     /**
-     * POST with JSON body - uses kotlinx.serialization for @Serializable classes,
-     * and manual JSON encoding for Map types
+     * POST with JSON body - uses manual JSON encoding for Map types
      */
     private suspend fun post(path: String, body: Any?): Result<String> {
         return withContext(Dispatchers.IO) {
@@ -103,18 +100,19 @@ class ApiClient {
                         is Map<*, *> -> {
                             // Manual JSON encoding for Map types
                             val entries = body.entries.map { (k, v) ->
-                                """"${k}":${if (v is String) ""\"${v}\"" else v}"""
+                                val key = k.toString()
+                                val value = when (v) {
+                                    is String -> "\"${v}\""
+                                    is Number -> v.toString()
+                                    is Boolean -> v.toString()
+                                    else -> "\"${v.toString()}\""
+                                }
+                                "\"${key}\":${value}"
                             }.joinToString(",")
-                            "{$entries}"
+                            "{${entries}}"
                         }
                         is String -> body
-                        else -> {
-                            // Use kotlinx.serialization for @Serializable classes
-                            json.encodeToString(
-                                kotlinx.serialization.serializer(body::class),
-                                body
-                            )
-                        }
+                        else -> body.toString()
                     }
                     jsonString.toRequestBody("application/json; charset=utf-8".toMediaType())
                 } else {
