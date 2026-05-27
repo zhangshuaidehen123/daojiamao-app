@@ -2,6 +2,7 @@ package com.daojia.app.ui.screens.order
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
@@ -162,10 +163,10 @@ fun CategoryOrderScreen(onBack: () -> Unit = {}) {
                             // 规格选择（FilterChip）
                             Text("选择规格：", fontWeight = FontWeight.Medium)
                             Spacer(modifier = Modifier.height(8.dp))
-                            Row(
+                            FlowRow(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                flexWrap = androidx.compose.foundation.layout.FlexWrap.Wrap
+                                verticalArrangement = Arrangement.spacedBy(4.dp)
                             ) {
                                 selectedCategory!!.specs.forEach { spec ->
                                     FilterChip(
