@@ -163,11 +163,12 @@ fun CategoryOrderScreen(onBack: () -> Unit = {}) {
                             Text("选择规格：", fontWeight = FontWeight.Medium)
                             Spacer(modifier = Modifier.height(8.dp))
                             Row(
+                            FlowRow(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                androidx.compose.foundation.layout.
-                            ) {
-                                selectedCategory!!.specs.forEach { spec ->
+                                verticalArrangement = Arrangement.spacedBy(4.dp),
+                                maxItemsInEachRow = 4
+                            )
                                     FilterChip(
                                         selected = selectedSpec == spec,
                                         onClick = { selectedSpec = spec },
