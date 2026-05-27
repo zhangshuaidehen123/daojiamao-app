@@ -23,12 +23,8 @@ android {
 
     buildTypes {
         release {
-            isMinifyEnabled = true
-            isShrinkResources = true
-            proguardFiles(
-                getDefaultProguardFile("proguard-android-optimize.txt"),
-                "proguard-rules.pro"
-            )
+            isMinifyEnabled = false
+            isShrinkResources = false
         }
         debug {
             isMinifyEnabled = false
@@ -42,6 +38,9 @@ android {
 
     kotlinOptions {
         jvmTarget = "17"
+        freeCompilerArgs += listOf(
+            "-opt-in=androidx.compose.material3.ExperimentalMaterial3Api"
+        )
     }
 
     buildFeatures {
@@ -60,12 +59,10 @@ android {
 }
 
 dependencies {
-    // ==================== Compose BOM ====================
     val composeBom = platform("androidx.compose:compose-bom:2024.02.00")
     implementation(composeBom)
     androidTestImplementation(composeBom)
 
-    // Compose核心
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-graphics")
     implementation("androidx.compose.ui:ui-tooling-preview")
@@ -75,31 +72,23 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.7.0")
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.7.0")
 
-    // Compose调试工具
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
 
-    // ==================== 导航 ====================
     implementation("androidx.navigation:navigation-compose:2.7.7")
 
-    // ==================== 网络请求 ====================
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
     implementation("com.squareup.okhttp3:logging-interceptor:4.12.0")
 
-    // ==================== 序列化 ====================
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.2")
 
-    // ==================== 数据存储 ====================
     implementation("androidx.datastore:datastore-preferences:1.0.0")
 
-    // ==================== 协程 ====================
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
 
-    // ==================== 核心库 ====================
     implementation("androidx.core:core-ktx:1.12.0")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.7.0")
 
-    // ==================== 测试 ====================
     testImplementation("junit:junit:4.13.2")
     androidTestImplementation("androidx.test.ext:junit:1.1.5")
     androidTestImplementation("androidx.test.espresso:espresso-core:3.5.1")
