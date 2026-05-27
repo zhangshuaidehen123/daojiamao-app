@@ -225,18 +225,18 @@ fun SellerCard(seller: WorkerInfo) {
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = seller.sellerName.ifBlank { "未知姓名" },
+                    text = seller.worker_name.ifBlank { "未知姓名" },
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.primary
                 )
-                if (seller.status.isNotBlank()) {
+                if (seller.available) {
                     Surface(
                         color = MaterialTheme.colorScheme.tertiaryContainer,
                         shape = RoundedCornerShape(4.dp)
                     ) {
                         Text(
-                            text = seller.status,
+                            text = "在线",
                             modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
                             fontSize = 12.sp,
                             color = MaterialTheme.colorScheme.onTertiaryContainer
@@ -257,7 +257,7 @@ fun SellerCard(seller: WorkerInfo) {
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Text(
-                    text = seller.sellerId,
+                    text = seller.worker_id,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurface
@@ -265,7 +265,7 @@ fun SellerCard(seller: WorkerInfo) {
             }
 
             // 手机号行
-            if (seller.mobile.isNotBlank()) {
+            if (seller.phone.isNotBlank()) {
                 Spacer(modifier = Modifier.height(4.dp))
                 Row(
                     modifier = Modifier.fillMaxWidth()
@@ -276,7 +276,7 @@ fun SellerCard(seller: WorkerInfo) {
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Text(
-                        text = seller.mobile,
+                        text = seller.phone,
                         fontSize = 14.sp,
                         color = MaterialTheme.colorScheme.onSurface
                     )
@@ -284,7 +284,8 @@ fun SellerCard(seller: WorkerInfo) {
             }
 
             // 距离行
-            if (seller.distance.isNotBlank() && seller.distance != "null") {
+            // 评分信息
+            if (seller.rating > 0) {
                 Spacer(modifier = Modifier.height(4.dp))
                 Row(
                     modifier = Modifier.fillMaxWidth()
