@@ -165,7 +165,7 @@ fun CategoryOrderScreen(onBack: () -> Unit = {}) {
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                flexWrap = androidx.compose.foundation.layout.FlexWrap.Wrap
+                                flexWrap = androidx.compose.foundation.layout.
                             ) {
                                 selectedCategory!!.specs.forEach { spec ->
                                     FilterChip(
