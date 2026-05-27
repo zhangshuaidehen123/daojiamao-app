@@ -58,7 +58,7 @@ fun SellerSearchScreen(
                     is Result.Loading -> {}
                 }
             } else {
-                when (val result = ApiClient.instance.searchSellerByMobile(searchText.trim())) {
+                when (val result = ApiClient.instance.searchSellerByName(searchText.trim())) {
                     is Result.Success -> {
                         sellers = listOf(result.data)
                         if (result.data.worker_id.isBlank()) errorMessage = "未找到手机号为「${searchText}」的保洁师"
