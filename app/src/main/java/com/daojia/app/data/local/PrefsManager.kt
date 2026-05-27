@@ -5,6 +5,7 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
@@ -31,6 +32,7 @@ class PrefsManager(private val context: Context) {
         private val SERVER_URL_KEY = stringPreferencesKey("server_url")
         private val COOKIE_CONTENT_KEY = stringPreferencesKey("cookie_content")
         private val COOKIE_VALID_KEY = booleanPreferencesKey("cookie_valid")
+        private val LAST_UPDATE_CHECK_KEY = longPreferencesKey("last_update_check")
     }
 
     /**
@@ -80,6 +82,23 @@ class PrefsManager(private val context: Context) {
             runBlocking {
                 context.dataStore.edit { prefs ->
                     prefs[COOKIE_VALID_KEY] = value
+                }
+            }
+        }
+
+    /**
+     * 上次检查更新时间
+     */
+    var lastUpdateCheck: Long
+        get() = runBlocking {
+            context.dataStore.data.map { prefs ->
+                prefs[LAST_UPDATE_CHECK_KEY] ?: 0L
+            }.first()
+        }
+        set(value) {
+            runBlocking {
+                context.dataStore.edit { prefs ->
+                    prefs[LAST_UPDATE_CHECK_KEY] = value
                 }
             }
         }
