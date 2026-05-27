@@ -32,7 +32,6 @@ import kotlinx.coroutines.launch
  * 所有选项都通过选择器完成，只有手机号和地址需要手动输入
  */
 @Composable
-@OptIn(ExperimentalLayoutApi::class)
 fun CategoryOrderScreen(onBack: () -> Unit = {}) {
     var currentStep by remember { mutableIntStateOf(0) }
 
