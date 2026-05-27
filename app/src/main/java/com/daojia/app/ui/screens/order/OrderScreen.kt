@@ -29,7 +29,6 @@ import com.daojia.app.ui.theme.*
  * Step3：选择服务时间 -> 选择保洁师
  * 确认页：展示所有选择的信息 -> 确认下单
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun OrderScreen(
     onBack: () -> Unit = {},
