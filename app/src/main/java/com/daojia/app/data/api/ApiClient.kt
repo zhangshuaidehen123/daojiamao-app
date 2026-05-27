@@ -1,7 +1,6 @@
 package com.daojia.app.data.api
 
 import com.daojia.app.DjApp
-import com.daojia.app.data.local.PrefsManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
@@ -15,8 +14,6 @@ import java.util.concurrent.TimeUnit
 class ApiClient {
 
     companion object {
-        private const val TAG = "ApiClient"
-
         private val json = Json {
             ignoreUnknownKeys = true
             isLenient = true
@@ -31,7 +28,6 @@ class ApiClient {
                 .addInterceptor { chain ->
                     val originalRequest = chain.request()
                     val prefs = DjApp.instance.prefsManager
-
                     val cookie = prefs.cookieContent
                     val newRequest = if (cookie.isNotBlank()) {
                         originalRequest.newBuilder()
@@ -40,7 +36,6 @@ class ApiClient {
                     } else {
                         originalRequest
                     }
-
                     chain.proceed(newRequest)
                 }
                 .build()
@@ -50,8 +45,7 @@ class ApiClient {
     }
 
     private fun getBaseUrl(): String {
-        val url = DjApp.instance.prefsManager.serverUrl
-        return url.trimEnd('/')
+        return DjApp.instance.prefsManager.serverUrl.trimEnd('/')
     }
 
     private fun buildUrl(path: String): String {
@@ -69,15 +63,12 @@ class ApiClient {
                         urlBuilder.append("${URLEncoder.encode(entry.key, "UTF-8")}=${URLEncoder.encode(entry.value, "UTF-8")}")
                     }
                 }
-
                 val request = Request.Builder()
                     .url(urlBuilder.toString())
                     .get()
                     .build()
-
                 val response = okHttpClient.newCall(request).execute()
                 val body = response.body?.string()
-
                 if (response.isSuccessful && body != null) {
                     Result.Success(body)
                 } else {
@@ -89,16 +80,12 @@ class ApiClient {
         }
     }
 
-    /**
-     * POST with JSON body - uses manual JSON encoding for Map types
-     */
     private suspend fun post(path: String, body: Any?): Result<String> {
         return withContext(Dispatchers.IO) {
             try {
                 val jsonBody = if (body != null) {
                     val jsonString = when (body) {
                         is Map<*, *> -> {
-                            // Manual JSON encoding for Map types
                             val entries = body.entries.map { (k, v) ->
                                 val key = k.toString()
                                 val value = when (v) {
@@ -118,15 +105,12 @@ class ApiClient {
                 } else {
                     "".toRequestBody("application/json; charset=utf-8".toMediaType())
                 }
-
                 val request = Request.Builder()
                     .url(buildUrl(path))
                     .post(jsonBody)
                     .build()
-
                 val response = okHttpClient.newCall(request).execute()
                 val responseBody = response.body?.string()
-
                 if (response.isSuccessful && responseBody != null) {
                     Result.Success(responseBody)
                 } else {
@@ -138,6 +122,7 @@ class ApiClient {
         }
     }
 
+    // ==================== 版本更新 ====================
     suspend fun checkUpdate(): Result<UpdateInfo> {
         return when (val result = get("/api/update/check")) {
             is Result.Success -> {
@@ -157,6 +142,7 @@ class ApiClient {
         }
     }
 
+    // ==================== Cookie验证 ====================
     suspend fun checkCookie(): Result<CookieStatus> {
         return when (val result = get("/api/cookie/check")) {
             is Result.Success -> {
@@ -176,6 +162,7 @@ class ApiClient {
         }
     }
 
+    // ==================== 套餐查询 ====================
     suspend fun queryPackages(phone: String): Result<List<PackageInfo>> {
         return when (val result = get("/api/packages", mapOf("phone" to phone))) {
             is Result.Success -> {
@@ -195,6 +182,7 @@ class ApiClient {
         }
     }
 
+    // ==================== 地址查询 ====================
     suspend fun queryAddresses(phone: String): Result<List<AddressInfo>> {
         return when (val result = get("/api/addresses", mapOf("phone" to phone))) {
             is Result.Success -> {
@@ -214,6 +202,7 @@ class ApiClient {
         }
     }
 
+    // ==================== 保洁师搜索 ====================
     suspend fun searchSellerByName(name: String): Result<List<WorkerInfo>> {
         return when (val result = get("/api/sellers/search-by-name", mapOf("name" to name))) {
             is Result.Success -> {
@@ -280,8 +269,9 @@ class ApiClient {
         }
     }
 
-    suspend fun createOrder(request: CreateOrderRequest): Result<CreateOrderResponse> {
-        return when (val result = post("/api/orders/create", request)) {
+    // ==================== 品类订单 ====================
+    suspend fun createCategoryOrder(request: CategoryOrderRequest): Result<CreateOrderResponse> {
+        return when (val result = post("/api/orders/category", request)) {
             is Result.Success -> {
                 try {
                     val response = json.decodeFromString<ApiResponse<CreateOrderResponse>>(result.data)
@@ -299,11 +289,47 @@ class ApiClient {
         }
     }
 
-    suspend fun queryOrders(
-        phone: String,
-        page: Int = 1,
-        size: Int = 20
-    ): Result<List<OrderInfo>> {
+    // ==================== 套餐订单 ====================
+    suspend fun createSingleOrder(request: ComboSingleRequest): Result<CreateOrderResponse> {
+        return when (val result = post("/api/orders/combo/single", request)) {
+            is Result.Success -> {
+                try {
+                    val response = json.decodeFromString<ApiResponse<CreateOrderResponse>>(result.data)
+                    if (response.data != null) {
+                        Result.Success(response.data)
+                    } else {
+                        Result.Error(response.message)
+                    }
+                } catch (e: Exception) {
+                    Result.Error("Parse error: ${e.message}")
+                }
+            }
+            is Result.Error -> result
+            is Result.Loading -> Result.Loading
+        }
+    }
+
+    suspend fun createCycleOrder(request: ComboCycleRequest): Result<CreateOrderResponse> {
+        return when (val result = post("/api/orders/combo/cycle", request)) {
+            is Result.Success -> {
+                try {
+                    val response = json.decodeFromString<ApiResponse<CreateOrderResponse>>(result.data)
+                    if (response.data != null) {
+                        Result.Success(response.data)
+                    } else {
+                        Result.Error(response.message)
+                    }
+                } catch (e: Exception) {
+                    Result.Error("Parse error: ${e.message}")
+                }
+            }
+            is Result.Error -> result
+            is Result.Loading -> Result.Loading
+        }
+    }
+
+    // ==================== 订单查询 ====================
+    suspend fun queryOrders(phone: String, page: Int = 1, size: Int = 20): Result<List<OrderInfo>> {
         return when (val result = get(
             "/api/orders",
             mapOf("phone" to phone, "page" to page.toString(), "size" to size.toString())
@@ -325,11 +351,31 @@ class ApiClient {
         }
     }
 
-    suspend fun queryOrderDetail(orderId: String): Result<OrderInfo> {
+    // ==================== 订单详情（通过订单ID查手机号）====================
+    suspend fun getMobileByOrder(orderId: String): Result<String> {
+        return when (val result = get("/api/orders/mobile/$orderId")) {
+            is Result.Success -> {
+                try {
+                    val response = json.decodeFromString<ApiResponse<Map<String, String>>>(result.data)
+                    if (response.code == 0 && response.data != null) {
+                        Result.Success(response.data["mobile"] ?: "")
+                    } else {
+                        Result.Error(response.message)
+                    }
+                } catch (e: Exception) {
+                    Result.Error("Parse error: ${e.message}")
+                }
+            }
+            is Result.Error -> result
+            is Result.Loading -> Result.Loading
+        }
+    }
+
+    suspend fun queryOrderDetail(orderId: String): Result<OrderDetailResponse> {
         return when (val result = get("/api/orders/$orderId")) {
             is Result.Success -> {
                 try {
-                    val response = json.decodeFromString<ApiResponse<OrderInfo>>(result.data)
+                    val response = json.decodeFromString<ApiResponse<OrderDetailResponse>>(result.data)
                     if (response.data != null) {
                         Result.Success(response.data)
                     } else {
@@ -344,6 +390,30 @@ class ApiClient {
         }
     }
 
+    // ==================== 周期查询（商家ID+手机号）====================
+    suspend fun queryCycleBySellerAndMobile(sellerId: String, mobile: String, weekType: String = "1"): Result<CycleInfo> {
+        return when (val result = get(
+            "/api/cycles/query",
+            mapOf("seller_id" to sellerId, "mobile" to mobile, "week_type" to weekType)
+        )) {
+            is Result.Success -> {
+                try {
+                    val response = json.decodeFromString<ApiResponse<CycleInfo>>(result.data)
+                    if (response.data != null) {
+                        Result.Success(response.data)
+                    } else {
+                        Result.Error(response.message)
+                    }
+                } catch (e: Exception) {
+                    Result.Error("Parse error: ${e.message}")
+                }
+            }
+            is Result.Error -> result
+            is Result.Loading -> Result.Loading
+        }
+    }
+
+    // ==================== 现金结算 ====================
     suspend fun queryCashInfo(orderNo: String): Result<CashSettleInfo> {
         return when (val result = get("/api/cash/info", mapOf("order_no" to orderNo))) {
             is Result.Success -> {
@@ -383,11 +453,12 @@ class ApiClient {
         }
     }
 
-    suspend fun getTodayStats(): Result<Map<String, Any>> {
-        return when (val result = get("/api/stats/today")) {
+    // ==================== 品类列表 ====================
+    suspend fun getCategories(): Result<List<CategoryInfo>> {
+        return when (val result = get("/api/categories")) {
             is Result.Success -> {
                 try {
-                    val response = json.decodeFromString<ApiResponse<Map<String, Any>>>(result.data)
+                    val response = json.decodeFromString<ApiResponse<List<CategoryInfo>>>(result.data)
                     if (response.data != null) {
                         Result.Success(response.data)
                     } else {
