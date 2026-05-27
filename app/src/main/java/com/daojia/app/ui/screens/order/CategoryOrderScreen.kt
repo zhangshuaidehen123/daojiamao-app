@@ -410,7 +410,6 @@ fun CategoryOrderScreen(onBack: () -> Unit = {}) {
                 }
             }
         }
-    }
 
     // 日期选择对话框
     if (showDatePicker) {
