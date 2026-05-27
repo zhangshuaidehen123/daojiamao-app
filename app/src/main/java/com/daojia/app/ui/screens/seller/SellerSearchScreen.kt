@@ -296,7 +296,7 @@ fun SellerCard(seller: WorkerInfo) {
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Text(
-                        text = "${seller.rating}m",
+                        text = "${seller.rating}",
                         fontSize = 14.sp,
                         color = MaterialTheme.colorScheme.onSurface
                     )
