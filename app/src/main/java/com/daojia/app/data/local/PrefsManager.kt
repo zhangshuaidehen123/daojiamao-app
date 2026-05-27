@@ -15,33 +15,26 @@ import kotlinx.coroutines.runBlocking
 
 private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "daojia_prefs")
 
-/**
- * 偏好设置管理器
- *
- * 管理应用的全局配置：
- * - 服务器地址（默认已内置）
- * - Cookie内容
- * - 其他持久化数据
- */
 class PrefsManager(private val context: Context) {
 
     companion object {
-        // 默认服务器地址（内置）
-        const val DEFAULT_SERVER_URL = "http://10.0.2.2:5000"
+        const val DEFAULT_SERVER_URL = "https://xsg.daojia-inc.com"
+        const val DEFAULT_CRM_URL = "https://jz-bjcrm.daojia-inc.com"
 
         private val SERVER_URL_KEY = stringPreferencesKey("server_url")
+        private val CRM_URL_KEY = stringPreferencesKey("crm_url")
         private val COOKIE_CONTENT_KEY = stringPreferencesKey("cookie_content")
         private val COOKIE_VALID_KEY = booleanPreferencesKey("cookie_valid")
         private val LAST_UPDATE_CHECK_KEY = longPreferencesKey("last_update_check")
     }
 
-    /**
-     * 服务器地址（带默认值）
-     */
     var serverUrl: String
         get() = runBlocking {
             context.dataStore.data.map { prefs ->
-                prefs[SERVER_URL_KEY] ?: DEFAULT_SERVER_URL
+                val saved = prefs[SERVER_URL_KEY]
+                if (saved.isNullOrBlank() || saved.contains("10.0.2.2") || saved.contains("localhost")) {
+                    DEFAULT_SERVER_URL
+                } else saved
             }.first()
         }
         set(value) {
@@ -52,9 +45,20 @@ class PrefsManager(private val context: Context) {
             }
         }
 
-    /**
-     * Cookie内容
-     */
+    var crmUrl: String
+        get() = runBlocking {
+            context.dataStore.data.map { prefs ->
+                prefs[CRM_URL_KEY] ?: DEFAULT_CRM_URL
+            }.first()
+        }
+        set(value) {
+            runBlocking {
+                context.dataStore.edit { prefs ->
+                    prefs[CRM_URL_KEY] = value
+                }
+            }
+        }
+
     var cookieContent: String
         get() = runBlocking {
             context.dataStore.data.map { prefs ->
@@ -69,9 +73,6 @@ class PrefsManager(private val context: Context) {
             }
         }
 
-    /**
-     * Cookie是否有效
-     */
     var isCookieValid: Boolean
         get() = runBlocking {
             context.dataStore.data.map { prefs ->
@@ -86,9 +87,6 @@ class PrefsManager(private val context: Context) {
             }
         }
 
-    /**
-     * 上次检查更新时间
-     */
     var lastUpdateCheck: Long
         get() = runBlocking {
             context.dataStore.data.map { prefs ->
@@ -103,10 +101,8 @@ class PrefsManager(private val context: Context) {
             }
         }
 
-    /**
-     * 重置为默认服务器地址
-     */
     fun resetToDefaultServer() {
         serverUrl = DEFAULT_SERVER_URL
+        crmUrl = DEFAULT_CRM_URL
     }
 }
