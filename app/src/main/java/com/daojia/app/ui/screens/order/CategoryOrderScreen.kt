@@ -1,4 +1,564 @@
 package com.daojia.app.ui.screens.order
+
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AccessTime
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.CalendarToday
+import androidx.compose.material.icons.filled.Remove
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDialog
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedCard
+import androidx.compose.material3.OutlinedIconButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TimePicker
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.rememberDatePickerState
+import androidx.compose.material3.rememberTimePickerState
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.daojia.app.data.api.ApiClient
+import com.daojia.app.data.api.CategoryInfo
+import com.daojia.app.data.api.CategoryOrderRequest
+import com.daojia.app.data.api.Result
+import com.daojia.app.ui.theme.Error
+import com.daojia.app.ui.theme.OnPrimary
+import com.daojia.app.ui.theme.Primary
+import com.daojia.app.ui.theme.PrimaryContainer
+import com.daojia.app.ui.theme.TextHint
+import com.daojia.app.ui.theme.TextPrimary
+import com.daojia.app.ui.theme.TextSecondary
+import kotlinx.coroutines.launch
+
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+@Composable
+fun CategoryOrderScreen(onBack: () -> Unit = {}) {
+    var currentStep by remember { mutableIntStateOf(0) }
+    var selectedCategory by remember { mutableStateOf<CategoryInfo?>(null) }
+    var selectedSpec by remember { mutableStateOf("") }
+    var selectedQuantity by remember { mutableIntStateOf(1) }
+    var mobile by remember { mutableStateOf("") }
+    var address by remember { mutableStateOf("") }
+    var assignMode by remember { mutableStateOf("auto") }
+    var sellerMobile by remember { mutableStateOf("") }
+    var detailText by remember { mutableStateOf("") }
+    var serviceDate by remember { mutableStateOf("") }
+    var serviceTime by remember { mutableStateOf("") }
+    var showDatePicker by remember { mutableStateOf(false) }
+    var showTimePicker by remember { mutableStateOf(false) }
+    var isLoading by remember { mutableStateOf(false) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+    var successMessage by remember { mutableStateOf<String?>(null) }
+    val api = remember { ApiClient.instance }
+    val scope = rememberCoroutineScope()
+
+    // 品类订单：只包含家电清洗、家居养护、专项清洁等（不包含日常保洁、深度保洁、钟点工）
+    val categories = remember {
+        listOf(
+            // 家电清洗
+            CategoryInfo("油烟机清洗", "1006", "DJ_JD_YYJ", 1, listOf("台式", "中式", "欧式", "侧吸"), "台", "油烟机深度拆洗"),
+            CategoryInfo("冰箱清洗", "1007", "DJ_JD_BX", 1, listOf("单门", "双门", "三门", "对开门"), "台", "冰箱内外清洁消毒"),
+            CategoryInfo("洗衣机清洗", "1008", "DJ_JD_XYJ", 1, listOf("波轮", "滚筒"), "台", "洗衣机内筒深度清洁"),
+            CategoryInfo("空调清洗", "1009", "DJ_JD_KT", 1, listOf("挂机", "柜机", "中央空调"), "台", "空调深度清洗"),
+            CategoryInfo("灶台清洗", "1010", "DJ_JD_ZT", 1, listOf("单眼灶", "双眼灶", "集成灶"), "台", "灶台深度清洁"),
+            CategoryInfo("微波炉清洗", "1011", "DJ_JD_WBL", 1, listOf("台式", "嵌入式"), "台", "微波炉清洁除味"),
+            CategoryInfo("热水器清洗", "1012", "DJ_JD_RSQ", 1, listOf("电热水器", "燃气热水器"), "台", "热水器内胆清洗除垢"),
+            CategoryInfo("灯具清洗", "1023", "DJ_JD_DJ", 1, listOf("吸顶灯", "吊灯", "水晶灯"), "个", "灯具清洁服务"),
+            // 家居养护
+            CategoryInfo("除螨", "1013", "DJ_JY_CM", 1, listOf("床垫除螨", "沙发除螨", "地毯除螨", "全屋除螨"), "次", "专业除螨服务"),
+            CategoryInfo("地板打蜡", "1014", "DJ_JY_DB", 2, listOf("实木地板", "复合地板"), "次", "地板清洁打蜡养护"),
+            CategoryInfo("家具养护", "1015", "DJ_JY_JJ", 2, listOf("皮质家具", "实木家具", "布艺家具"), "次", "家具清洁养护"),
+            CategoryInfo("沙发清洗", "1024", "DJ_JY_SF", 1, listOf("布艺沙发", "皮质沙发"), "套", "沙发深度清洁"),
+            CategoryInfo("地毯清洗", "1025", "DJ_JY_DT", 1, listOf("化纤地毯", "羊毛地毯"), "平米", "地毯深度清洗"),
+            CategoryInfo("窗帘清洗", "1026", "DJ_JY_CL", 1, listOf("普通窗帘", "纱帘", "遮光帘"), "副", "窗帘拆洗服务"),
+            // 专项清洁
+            CategoryInfo("卫生间清洁", "1016", "DJ_ZX_WSJ", 2, listOf("2小时", "3小时"), "小时", "卫生间专项深度清洁"),
+            CategoryInfo("厨房清洁", "1017", "DJ_ZX_CF", 2, listOf("2小时", "3小时"), "小时", "厨房专项深度清洁"),
+            CategoryInfo("收纳整理", "1018", "DJ_ZX_SN", 3, listOf("3小时", "4小时", "5小时"), "小时", "全屋收纳整理服务"),
+            CategoryInfo("装修后保洁", "1019", "DJ_ZX_ZX", 4, listOf("4小时", "6小时", "8小时"), "小时", "装修后全面清洁"),
+            // 其他服务
+            CategoryInfo("杀虫除蟑", "1021", "DJ_QT_SC", 1, listOf("全屋除蟑", "全屋杀虫"), "次", "专业杀虫除蟑服务"),
+            CategoryInfo("管道疏通", "1022", "DJ_QT_GD", 1, listOf("厨房下水道", "卫生间下水道", "地漏"), "次", "管道疏通服务"),
+            CategoryInfo("甲醛治理", "1027", "DJ_QT_JQ", 1, listOf("全屋治理", "单间治理"), "次", "甲醛检测与治理"),
+            CategoryInfo("搬家保洁", "1028", "DJ_QT_BJ", 4, listOf("一居室", "两居室", "三居室"), "次", "搬家前后保洁服务"),
+            CategoryInfo("擦玻璃", "1020", "DJ_BJ_BL", 2, listOf("2小时", "3小时", "4小时"), "小时", "室内外玻璃清洁"),
+            CategoryInfo("开荒保洁", "1003", "DJ_BJ_KH", 4, listOf("4小时", "6小时", "8小时"), "小时", "新房/装修后开荒保洁"),
+        )
+    }
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("品类订单") },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.Default.ArrowBack, "返回")
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.primary)
+            )
+        }
+    ) { paddingValues ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues)
+        ) {
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                color = MaterialTheme.colorScheme.surfaceVariant
+            ) {
+                Row(
+                    modifier = Modifier.padding(12.dp),
+                    horizontalArrangement = Arrangement.SpaceEvenly
+                ) {
+                    StepIndicator(1, "选服务", currentStep >= 0)
+                    StepIndicator(2, "填信息", currentStep >= 1)
+                }
+            }
+
+            if (currentStep == 0) {
+                LazyVerticalGrid(
+                    columns = GridCells.Fixed(2),
+                    modifier = Modifier.fillMaxSize().padding(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    items(categories) { cat ->
+                        CategoryCard(
+                            category = cat,
+                            isSelected = selectedCategory?.name == cat.name,
+                            onClick = {
+                                selectedCategory = cat
+                                selectedSpec = ""
+                                selectedQuantity = 1
+                            }
+                        )
+                    }
+                }
+
+                if (selectedCategory != null) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Surface(
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp),
+                        shape = RoundedCornerShape(8.dp),
+                        color = PrimaryContainer.copy(alpha = 0.3f)
+                    ) {
+                        Column(modifier = Modifier.padding(12.dp)) {
+                            Text("已选：${selectedCategory!!.name}", fontWeight = FontWeight.Bold, color = Primary)
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Text("选择规格：", fontWeight = FontWeight.Medium)
+                            Spacer(modifier = Modifier.height(8.dp))
+                            FlowRow(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                selectedCategory!!.specs.forEach { spec ->
+                                    FilterChip(
+                                        selected = selectedSpec == spec,
+                                        onClick = { selectedSpec = spec },
+                                        label = { Text(spec) }
+                                    )
+                                }
+                            }
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Text("选择数量：", fontWeight = FontWeight.Medium)
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                OutlinedIconButton(
+                                    onClick = { if (selectedQuantity > 1) selectedQuantity-- },
+                                    enabled = selectedQuantity > 1
+                                ) {
+                                    Icon(Icons.Default.Remove, "减少")
+                                }
+                                Text(
+                                    text = "$selectedQuantity ${selectedCategory!!.unit}",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.padding(horizontal = 20.dp)
+                                )
+                                OutlinedIconButton(
+                                    onClick = { if (selectedQuantity < 10) selectedQuantity++ },
+                                    enabled = selectedQuantity < 10
+                                ) {
+                                    Icon(Icons.Default.Add, "增加")
+                                }
+                            }
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Button(
+                                onClick = { if (selectedSpec.isNotBlank()) currentStep = 1 },
+                                enabled = selectedSpec.isNotBlank(),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text("下一步")
+                            }
+                        }
+                    }
+                }
+            } else {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(16.dp)
+                        .verticalScroll(rememberScrollState())
+                ) {
+                    Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = PrimaryContainer.copy(alpha = 0.2f))) {
+                        Column(modifier = Modifier.padding(12.dp)) {
+                            Text("服务：${selectedCategory?.name ?: ""}", fontWeight = FontWeight.Bold)
+                            Text("规格：$selectedSpec")
+                            Text("数量：$selectedQuantity ${selectedCategory?.unit ?: ""}")
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text("客户手机号 *", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleSmall)
+                    Spacer(modifier = Modifier.height(4.dp))
+                    OutlinedTextField(
+                        value = mobile,
+                        onValueChange = { mobile = it },
+                        label = { Text("请输入11位手机号") },
+                        placeholder = { Text("13800138000") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text("服务地址 *", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleSmall)
+                    Spacer(modifier = Modifier.height(4.dp))
+                    OutlinedTextField(
+                        value = address,
+                        onValueChange = { address = it },
+                        label = { Text("请输入详细服务地址") },
+                        placeholder = { Text("XX小区X栋X单元X号") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text("服务日期", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleSmall)
+                    Spacer(modifier = Modifier.height(4.dp))
+                    OutlinedTextField(
+                        value = serviceDate,
+                        onValueChange = { },
+                        label = { Text("选择日期") },
+                        placeholder = { Text("点击选择日期") },
+                        readOnly = true,
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth().clickable { showDatePicker = true },
+                        trailingIcon = {
+                            IconButton(onClick = { showDatePicker = true }) {
+                                Icon(Icons.Default.CalendarToday, "选择日期")
+                            }
+                        }
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text("服务时间", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleSmall)
+                    Spacer(modifier = Modifier.height(4.dp))
+                    OutlinedTextField(
+                        value = serviceTime,
+                        onValueChange = { },
+                        label = { Text("选择时间") },
+                        placeholder = { Text("点击选择时间") },
+                        readOnly = true,
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth().clickable { showTimePicker = true },
+                        trailingIcon = {
+                            IconButton(onClick = { showTimePicker = true }) {
+                                Icon(Icons.Default.AccessTime, "选择时间")
+                            }
+                        }
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text("分配方式", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleSmall)
+                    Spacer(modifier = Modifier.height(4.dp))
+                    FlowRow(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        FilterChip(
+                            selected = assignMode == "auto",
+                            onClick = { assignMode = "auto" },
+                            label = { Text("自动分配") }
+                        )
+                        FilterChip(
+                            selected = assignMode == "manual",
+                            onClick = { assignMode = "manual" },
+                            label = { Text("指定保洁师") }
+                        )
+                    }
+                    if (assignMode == "manual") {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        OutlinedTextField(
+                            value = sellerMobile,
+                            onValueChange = { sellerMobile = it },
+                            label = { Text("保洁师手机号") },
+                            placeholder = { Text("请输入保洁师手机号") },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text("备注", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleSmall)
+                    Spacer(modifier = Modifier.height(4.dp))
+                    OutlinedTextField(
+                        value = detailText,
+                        onValueChange = { detailText = it },
+                        label = { Text("备注信息（可选）") },
+                        placeholder = { Text("如有特殊要求请填写") },
+                        modifier = Modifier.fillMaxWidth().height(80.dp),
+                        maxLines = 3
+                    )
+                    Spacer(modifier = Modifier.height(24.dp))
+                    Row(modifier = Modifier.fillMaxWidth()) {
+                        OutlinedButton(
+                            onClick = { currentStep = 0 },
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text("上一步")
+                        }
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Button(
+                            onClick = {
+                                if (mobile.isBlank() || address.isBlank()) {
+                                    errorMessage = "请填写必填项"
+                                    return@Button
+                                }
+                                scope.launch {
+                                    isLoading = true
+                                    val request = CategoryOrderRequest(
+                                        categoryId = selectedCategory!!.id,
+                                        categoryName = selectedCategory!!.name,
+                                        spec = selectedSpec,
+                                        quantity = selectedQuantity,
+                                        mobile = mobile,
+                                        address = address,
+                                        serviceDate = serviceDate,
+                                        serviceTime = serviceTime,
+                                        assignMode = assignMode,
+                                        sellerMobile = if (assignMode == "manual") sellerMobile else null,
+                                        remark = detailText.takeIf { it.isNotBlank() }
+                                    )
+                                    when (val result = api.createCategoryOrder(request)) {
+                                        is Result.Success -> {
+                                            successMessage = "订单创建成功！订单号：${result.data}"
+                                        }
+                                        is Result.Error -> {
+                                            errorMessage = result.message
+                                        }
+                                        is Result.Loading -> {}
+                                    }
+                                    isLoading = false
+                                }
+                            },
+                            enabled = !isLoading && mobile.isNotBlank() && address.isNotBlank(),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            if (isLoading) {
+                                CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+                            } else {
+                                Text("提交订单")
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    if (showDatePicker) {
+        val datePickerState = rememberDatePickerState()
+        DatePickerDialog(
+            onDismissRequest = { showDatePicker = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    datePickerState.selectedDateMillis?.let {
+                        val calendar = java.util.Calendar.getInstance()
+                        calendar.timeInMillis = it
+                        val year = calendar.get(java.util.Calendar.YEAR)
+                        val month = calendar.get(java.util.Calendar.MONTH) + 1
+                        val day = calendar.get(java.util.Calendar.DAY_OF_MONTH)
+                        serviceDate = String.format("%04d-%02d-%02d", year, month, day)
+                    }
+                    showDatePicker = false
+                }) {
+                    Text("确定")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDatePicker = false }) {
+                    Text("取消")
+                }
+            }
+        ) {
+            DatePicker(state = datePickerState)
+        }
+    }
+
+    if (showTimePicker) {
+        val timePickerState = rememberTimePickerState()
+        AlertDialog(
+            onDismissRequest = { showTimePicker = false },
+            title = { Text("选择时间") },
+            text = {
+                TimePicker(state = timePickerState)
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    serviceTime = String.format("%02d:%02d", timePickerState.hour, timePickerState.minute)
+                    showTimePicker = false
+                }) {
+                    Text("确定")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showTimePicker = false }) {
+                    Text("取消")
+                }
+            }
+        )
+    }
+
+    if (errorMessage != null) {
+        AlertDialog(
+            onDismissRequest = { errorMessage = null },
+            title = { Text("错误") },
+            text = { Text(errorMessage!!) },
+            confirmButton = {
+                TextButton(onClick = { errorMessage = null }) {
+                    Text("确定")
+                }
+            }
+        )
+    }
+
+    if (successMessage != null) {
+        AlertDialog(
+            onDismissRequest = {
+                successMessage = null
+                onBack()
+            },
+            title = { Text("成功") },
+            text = { Text(successMessage!!) },
+            confirmButton = {
+                TextButton(onClick = {
+                    successMessage = null
+                    onBack()
+                }) {
+                    Text("确定")
+                }
+            }
+        )
+    }
+}
+
+@Composable
+private fun StepIndicator(step: Int, label: String, isActive: Boolean) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Surface(
+            shape = CircleShape,
+            color = if (isActive) Primary else TextHint.copy(alpha = 0.3f),
+            modifier = Modifier.size(32.dp)
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                Text(
+                    text = step.toString(),
+                    color = if (isActive) OnPrimary else TextHint,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
+        Spacer(modifier = Modifier.height(4.dp))
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodySmall,
+            color = if (isActive) Primary else TextHint
+        )
+    }
+}
+
+@Composable
+private fun CategoryCard(
+    category: CategoryInfo,
+    isSelected: Boolean,
+    onClick: () -> Unit
+) {
+    Card(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = if (isSelected) PrimaryContainer.copy(alpha = 0.5f) else MaterialTheme.colorScheme.surface
+        ),
+        border = if (isSelected) androidx.compose.foundation.BorderStroke(2.dp, Primary) else null
+    ) {
+        Column(
+            modifier = Modifier.padding(12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                text = category.name,
+                fontWeight = FontWeight.Medium,
+                textAlign = TextAlign.Center,
+                color = if (isSelected) Primary else TextPrimary
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = category.desc,
+                style = MaterialTheme.typography.bodySmall,
+                color = TextSecondary,
+                textAlign = TextAlign.Center,
+                maxLines = 2
+            )
+        }
+    }
+}package com.daojia.app.ui.screens.order
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
