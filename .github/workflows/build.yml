@@ -20,17 +20,12 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: 缓存Gradle
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.gradle/caches
-            ~/.gradle/wrapper
-          key: gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
-          restore-keys: gradle-
-
-      - name: 设置Gradle权限
-        run: chmod +x gradlew
+      - name: 安装Gradle并生成启动脚本
+        run: |
+          wget -q https://services.gradle.org/distributions/gradle-8.5-bin.zip
+          unzip -q gradle-8.5-bin.zip
+          export PATH=$PWD/gradle-8.5/bin:$PATH
+          gradle wrapper --gradle-version 8.5
 
       - name: 编译Debug APK
         run: ./gradlew assembleDebug
