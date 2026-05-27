@@ -484,11 +484,12 @@ fun CategoryOrderScreen(onBack: () -> Unit = {}) {
     }
 
     // 成功提示
-    successMessage?.let {
+    if (successMessage != null) {
+        val msg = successMessage
         AlertDialog(
             onDismissRequest = { successMessage = null },
             title = { Text("下单成功") },
-            text = { Text(it) },
+            text = { Text(msg) },
             confirmButton = {
                 TextButton(onClick = {
                     successMessage = null
