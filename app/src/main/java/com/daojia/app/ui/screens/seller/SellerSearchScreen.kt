@@ -61,7 +61,7 @@ fun SellerSearchScreen(
                 when (val result = ApiClient.instance.searchSellerByMobile(searchText.trim())) {
                     is Result.Success -> {
                         sellers = listOf(result.data)
-                        if (result.data.sellerId.isBlank()) errorMessage = "未找到手机号为「${searchText}」的保洁师"
+                        if (result.data.worker_id.isBlank()) errorMessage = "未找到手机号为「${searchText}」的保洁师"
                     }
                     is Result.Error -> errorMessage = result.message
                     is Result.Loading -> {}
@@ -296,7 +296,7 @@ fun SellerCard(seller: WorkerInfo) {
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Text(
-                        text = "${seller.distance}m",
+                        text = "${seller.rating}m",
                         fontSize = 14.sp,
                         color = MaterialTheme.colorScheme.onSurface
                     )
