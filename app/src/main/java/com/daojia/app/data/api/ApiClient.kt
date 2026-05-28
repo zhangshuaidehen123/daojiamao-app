@@ -1,7 +1,6 @@
 package com.daojia.app.data.api
 
 import com.daojia.app.DjApp
-import com.daojia.app.data.local.PrefsManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
@@ -13,502 +12,297 @@ import java.net.URLEncoder
 import java.util.concurrent.TimeUnit
 
 /**
- * API客户端 - 基于OkHttp的网络请求封装
+ * API客户端 - 通过本地 FastAPI 中间件调用到家平台
  *
- * 所有API调用均通过此类进行，返回统一的Result封装
- * 基础URL从PrefsManager动态读取，支持随时切换服务器
+ * 所有 API 调用走 PrefsManager.serverUrl 指向的 FastAPI 服务
+ * （默认 http://192.168.1.100:5000，用户需在设置中改为电脑实际 IP）
  */
 class ApiClient {
 
     companion object {
-        private const val TAG = "ApiClient"
-
-        // JSON序列化配置
         private val json = Json {
             ignoreUnknownKeys = true
             isLenient = true
             encodeDefaults = true
         }
 
-        // OkHttp客户端（单例）
         private val okHttpClient: OkHttpClient by lazy {
             OkHttpClient.Builder()
                 .connectTimeout(30, TimeUnit.SECONDS)
-                .readTimeout(30, TimeUnit.SECONDS)
+                .readTimeout(60, TimeUnit.SECONDS)
                 .writeTimeout(30, TimeUnit.SECONDS)
-                .addInterceptor { chain ->
-                    val originalRequest = chain.request()
-                    val prefs = DjApp.instance.prefsManager
-
-                    // 自动附加Cookie和浏览器请求头
-                    val cookie = prefs.cookieContent
-                    val requestBuilder = originalRequest.newBuilder()
-                        .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
-                        .header("Accept", "application/json, text/plain, */*")
-                        .header("Accept-Language", "zh-CN,zh;q=0.9,en;q=0.8")
-
-                    if (cookie.isNotBlank()) {
-                        requestBuilder.header("Cookie", cookie)
-                    }
-
-                    val newRequest = requestBuilder.build()
-                    chain.proceed(newRequest)
-                }
                 .build()
         }
 
-        // 单例实例
         val instance: ApiClient by lazy { ApiClient() }
     }
 
-    /**
-     * 获取基础URL
-     */
-    private fun getBaseUrl(): String {
-        val url = DjApp.instance.prefsManager.serverUrl
-        return url.trimEnd('/')
-    }
+    private fun getBaseUrl(): String =
+        DjApp.instance.prefsManager.serverUrl.trimEnd('/')
 
-    /**
-     * 构建完整URL
-     */
-    private fun buildUrl(path: String): String {
-        return "${getBaseUrl()}$path"
-    }
+    private fun buildUrl(path: String): String = "${getBaseUrl()}$path"
 
-    /**
-     * 执行GET请求
-     */
-    private suspend fun get(path: String, params: Map<String, String> = emptyMap()): Result<String> {
-        return withContext(Dispatchers.IO) {
+    // ==================== 通用请求方法 ====================
+
+    private suspend fun get(path: String, params: Map<String, String> = emptyMap()): Result<String> =
+        withContext(Dispatchers.IO) {
             try {
                 val urlBuilder = StringBuilder(buildUrl(path))
                 if (params.isNotEmpty()) {
                     urlBuilder.append("?")
-                    params.entries.forEachIndexed { index, entry ->
-                        if (index > 0) urlBuilder.append("&")
-                        urlBuilder.append("${URLEncoder.encode(entry.key, "UTF-8")}=${URLEncoder.encode(entry.value, "UTF-8")}")
+                    params.entries.forEachIndexed { i, e ->
+                        if (i > 0) urlBuilder.append("&")
+                        urlBuilder.append("${URLEncoder.encode(e.key, "UTF-8")}=${URLEncoder.encode(e.value, "UTF-8")}")
                     }
                 }
-
-                val request = Request.Builder()
-                    .url(urlBuilder.toString())
-                    .get()
-                    .build()
-
+                val request = Request.Builder().url(urlBuilder.toString()).get().build()
                 val response = okHttpClient.newCall(request).execute()
                 val body = response.body?.string()
-
-                if (response.isSuccessful && body != null) {
-                    Result.Success(body)
-                } else {
-                    Result.Error("请求失败：${response.code}", response.code)
-                }
+                if (response.isSuccessful && body != null) Result.Success(body)
+                else Result.Error("请求失败：${response.code}", response.code)
             } catch (e: Exception) {
                 Result.Error("网络异常：${e.message}")
             }
         }
-    }
 
-    /**
-     * 执行POST请求（JSON body）
-     */
-    private suspend fun post(path: String, body: Any?): Result<String> {
-        return withContext(Dispatchers.IO) {
+    private suspend inline fun <reified T> postJson(path: String, body: T): Result<String> =
+        withContext(Dispatchers.IO) {
             try {
-                val jsonBody = if (body != null) {
-                    val jsonString = json.encodeToString(
-                        kotlinx.serialization.serializer<Any>(),
-                        body
-                    )
-                    jsonString.toRequestBody("application/json; charset=utf-8".toMediaType())
-                } else {
-                    "".toRequestBody("application/json; charset=utf-8".toMediaType())
-                }
-
-                val request = Request.Builder()
-                    .url(buildUrl(path))
-                    .post(jsonBody)
-                    .build()
-
+                val jsonString = json.encodeToString(kotlinx.serialization.serializer<T>(), body)
+                val jsonBody = jsonString.toRequestBody("application/json; charset=utf-8".toMediaType())
+                val request = Request.Builder().url(buildUrl(path)).post(jsonBody).build()
                 val response = okHttpClient.newCall(request).execute()
                 val responseBody = response.body?.string()
-
-                if (response.isSuccessful && responseBody != null) {
-                    Result.Success(responseBody)
-                } else {
-                    Result.Error("请求失败：${response.code}", response.code)
-                }
+                if (response.isSuccessful && responseBody != null) Result.Success(responseBody)
+                else Result.Error("请求失败：${response.code}", response.code)
             } catch (e: Exception) {
                 Result.Error("网络异常：${e.message}")
             }
         }
-    }
 
-    // ==================== 版本更新API ====================
-
-    /**
-     * 检查版本更新
-     * GET /api/update/check
-     */
-    suspend fun checkUpdate(): Result<UpdateInfo> {
-        return when (val result = get("/api/update/check")) {
-            is Result.Success -> {
-                try {
-                    val response = json.decodeFromString<ApiResponse<UpdateInfo>>(result.data)
-                    if (response.code == 0 && response.data != null) {
-                        Result.Success(response.data)
-                    } else {
-                        Result.Error(response.message)
-                    }
-                } catch (e: Exception) {
-                    Result.Error("数据解析失败：${e.message}")
-                }
-            }
-            is Result.Error -> result
-            is Result.Loading -> Result.Loading
-        }
-    }
-
-    // ==================== Cookie验证API ====================
-
-    /**
-     * 验证Cookie有效性 - 直接调用到家平台API
-     * GET /order/list.do
-     */
-    suspend fun checkCookie(): Result<CookieStatus> {
-        return withContext(Dispatchers.IO) {
+    private suspend fun postMap(path: String, body: Map<String, String>): Result<String> =
+        withContext(Dispatchers.IO) {
             try {
-                val prefs = DjApp.instance.prefsManager
-                val cookie = prefs.cookieContent
-
-                if (cookie.isBlank()) {
-                    Result.Success(CookieStatus(valid = false, message = "Cookie为空"))
-                } else {
-                    // 直接调用到家平台的订单列表接口验证Cookie
-                    val request = Request.Builder()
-                        .url("${getBaseUrl()}/order/list.do")
-                        .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
-                        .header("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8")
-                        .header("Accept-Language", "zh-CN,zh;q=0.9,en;q=0.8")
-                        .header("Cookie", cookie)
-                        .get()
-                        .build()
-
-                    val response = okHttpClient.newCall(request).execute()
-                    val body = response.body?.string() ?: ""
-
-                    // 验证逻辑：检查响应中是否包含登录相关关键词
-                    val isValid = when {
-                        // HTTP 302重定向到登录页
-                        response.code == 302 -> false
-                        // 响应内容包含登录关键词
-                        body.contains("login", ignoreCase = true) ||
-                        body.contains("登录", ignoreCase = true) ||
-                        body.contains("请先登录", ignoreCase = true) ||
-                        body.contains("未登录", ignoreCase = true) -> false
-                        // 成功获取到订单页面
-                        response.isSuccessful && body.isNotEmpty() -> true
-                        // 其他情况视为无效
-                        else -> false
+                val jsonString = buildString {
+                    append("{")
+                    body.entries.forEachIndexed { i, e ->
+                        if (i > 0) append(",")
+                        append("\"${e.key}\":\"${e.value}\"")
                     }
-
-                    // 更新本地Cookie有效状态
-                    prefs.isCookieValid = isValid
-
-                    Result.Success(
-                        CookieStatus(
-                            valid = isValid,
-                            message = if (isValid) "Cookie有效" else "Cookie已过期或无效"
-                        )
-                    )
+                    append("}")
                 }
+                val jsonBody = jsonString.toRequestBody("application/json; charset=utf-8".toMediaType())
+                val request = Request.Builder().url(buildUrl(path)).post(jsonBody).build()
+                val response = okHttpClient.newCall(request).execute()
+                val responseBody = response.body?.string()
+                if (response.isSuccessful && responseBody != null) Result.Success(responseBody)
+                else Result.Error("请求失败：${response.code}", response.code)
             } catch (e: Exception) {
-                Result.Error("Cookie验证失败：${e.message}")
+                Result.Error("网络异常：${e.message}")
             }
         }
+
+    // ==================== 版本更新 ====================
+
+    suspend fun checkUpdate(): Result<UpdateInfo> = when (val r = get("/api/update/check")) {
+        is Result.Success -> try {
+            val resp = json.decodeFromString<ApiResponse<UpdateInfo>>(r.data)
+            if (resp.code == 0 && resp.data != null) Result.Success(resp.data)
+            else Result.Error(resp.message)
+        } catch (e: Exception) { Result.Error("数据解析失败：${e.message}") }
+        is Result.Error -> r
+        is Result.Loading -> Result.Loading
     }
 
-    // ==================== 套餐API ====================
+    // ==================== Cookie 验证（走 FastAPI 中间件） ====================
 
     /**
-     * 根据手机号查询可用套餐
-     * GET /api/packages?phone=xxx
+     * 验证 Cookie 有效性
+     * 调用 FastAPI 的 /api/cookie/validate，由后端再去验证到家平台
      */
-    suspend fun queryPackages(phone: String): Result<List<PackageInfo>> {
-        return when (val result = get("/api/packages", mapOf("phone" to phone))) {
-            is Result.Success -> {
-                try {
-                    val response = json.decodeFromString<ApiResponse<PackageListResponse>>(result.data)
-                    if (response.data != null) {
-                        Result.Success(response.data.packages)
-                    } else {
-                        Result.Error(response.message)
-                    }
-                } catch (e: Exception) {
-                    Result.Error("数据解析失败：${e.message}")
-                }
-            }
-            is Result.Error -> result
-            is Result.Loading -> Result.Loading
-        }
-    }
-
-    // ==================== 地址API ====================
-
-    /**
-     * 查询用户地址列表
-     * GET /api/addresses?phone=xxx
-     */
-    suspend fun queryAddresses(phone: String): Result<List<AddressInfo>> {
-        return when (val result = get("/api/addresses", mapOf("phone" to phone))) {
-            is Result.Success -> {
-                try {
-                    val response = json.decodeFromString<ApiResponse<AddressListResponse>>(result.data)
-                    if (response.data != null) {
-                        Result.Success(response.data.addresses)
-                    } else {
-                        Result.Error(response.message)
-                    }
-                } catch (e: Exception) {
-                    Result.Error("数据解析失败：${e.message}")
-                }
-            }
-            is Result.Error -> result
-            is Result.Loading -> Result.Loading
-        }
-    }
-
-    // ==================== 保洁师API ====================
-
-    /**
-     * 通过保洁师姓名搜索
-     * GET /api/sellers/search-by-name?name=何章
-     */
-    suspend fun searchSellerByName(name: String): Result<List<WorkerInfo>> {
-        return when (val result = get("/api/sellers/search-by-name", mapOf("name" to name))) {
-            is Result.Success -> {
-                try {
-                    val response = json.decodeFromString<ApiResponse<List<WorkerInfo>>>(result.data)
-                    if (response.code == 0 && response.data != null) {
-                        Result.Success(response.data)
-                    } else {
-                        Result.Error(response.message)
-                    }
-                } catch (e: Exception) {
-                    Result.Error("数据解析失败：${e.message}")
-                }
-            }
-            is Result.Error -> result
-            is Result.Loading -> Result.Loading
-        }
+    suspend fun checkCookie(): Result<CookieStatus> = when (val r = get("/api/cookie/validate")) {
+        is Result.Success -> try {
+            val resp = json.decodeFromString<ApiResponse<CookieStatus>>(r.data)
+            if (resp.data != null) {
+                DjApp.instance.prefsManager.isCookieValid = resp.data.valid
+                Result.Success(resp.data)
+            } else Result.Error(resp.message)
+        } catch (e: Exception) { Result.Error("数据解析失败：${e.message}") }
+        is Result.Error -> r
+        is Result.Loading -> Result.Loading
     }
 
     /**
-     * 通过保洁师手机号查询ID
-     * GET /api/sellers/search-by-name/{mobile}
+     * 更新 Cookie 到 FastAPI 服务
      */
-    suspend fun searchSellerByMobile(mobile: String): Result<WorkerInfo> {
-        return when (val result = get("/api/sellers/search-by-name/$mobile")) {
-            is Result.Success -> {
-                try {
-                    val response = json.decodeFromString<ApiResponse<Map<String, String>>>(result.data)
-                    if (response.code == 0 && response.data != null) {
-                        Result.Success(WorkerInfo(
-                            sellerId = response.data["seller_id"] ?: "",
-                            sellerName = "",
-                            mobile = mobile,
-                            status = "",
-                        ))
-                    } else {
-                        Result.Error(response.message)
-                    }
-                } catch (e: Exception) {
-                    Result.Error("数据解析失败：${e.message}")
-                }
-            }
-            is Result.Error -> result
-            is Result.Loading -> Result.Loading
-        }
+    suspend fun updateCookieOnServer(cookie: String): Result<Boolean> = when (val r = postMap(
+        "/api/cookie/update", mapOf("cookie" to cookie)
+    )) {
+        is Result.Success -> try {
+            val resp = json.decodeFromString<ApiResponse<CookieStatus>>(r.data)
+            Result.Success(resp.data?.valid ?: false)
+        } catch (e: Exception) { Result.Error("数据解析失败：${e.message}") }
+        is Result.Error -> r
+        is Result.Loading -> Result.Loading
     }
 
-    /**
-     * 查询可用保洁师列表
-     * GET /api/workers?service_time=xxx
-     */
+    // ==================== 套餐 ====================
+
+    suspend fun queryPackages(phone: String): Result<List<PackageInfo>> = when (val r = get("/api/packages", mapOf("phone" to phone))) {
+        is Result.Success -> try {
+            val resp = json.decodeFromString<ApiResponse<PackageListResponse>>(r.data)
+            if (resp.data != null) Result.Success(resp.data.packages) else Result.Error(resp.message)
+        } catch (e: Exception) { Result.Error("数据解析失败：${e.message}") }
+        is Result.Error -> r
+        is Result.Loading -> Result.Loading
+    }
+
+    // ==================== 地址 ====================
+
+    suspend fun queryAddresses(phone: String): Result<List<AddressInfo>> = when (val r = get("/api/addresses", mapOf("phone" to phone))) {
+        is Result.Success -> try {
+            val resp = json.decodeFromString<ApiResponse<AddressListResponse>>(r.data)
+            if (resp.data != null) Result.Success(resp.data.addresses) else Result.Error(resp.message)
+        } catch (e: Exception) { Result.Error("数据解析失败：${e.message}") }
+        is Result.Error -> r
+        is Result.Loading -> Result.Loading
+    }
+
+    // ==================== 保洁师 ====================
+
+    suspend fun searchSellerByName(name: String): Result<List<WorkerInfo>> = when (val r = get("/api/sellers/search-by-name", mapOf("name" to name))) {
+        is Result.Success -> try {
+            val resp = json.decodeFromString<ApiResponse<List<WorkerInfo>>>(r.data)
+            if (resp.code == 0 && resp.data != null) Result.Success(resp.data) else Result.Error(resp.message)
+        } catch (e: Exception) { Result.Error("数据解析失败：${e.message}") }
+        is Result.Error -> r
+        is Result.Loading -> Result.Loading
+    }
+
+    suspend fun searchSellerByMobile(mobile: String): Result<WorkerInfo> = when (val r = get("/api/sellers/search-by-name/$mobile")) {
+        is Result.Success -> try {
+            val resp = json.decodeFromString<ApiResponse<Map<String, String>>>(r.data)
+            if (resp.code == 0 && resp.data != null) {
+                Result.Success(WorkerInfo(
+                    worker_id = resp.data["seller_id"] ?: "",
+                    worker_name = "",
+                    phone = mobile
+                ))
+            } else Result.Error(resp.message)
+        } catch (e: Exception) { Result.Error("数据解析失败：${e.message}") }
+        is Result.Error -> r
+        is Result.Loading -> Result.Loading
+    }
+
     suspend fun queryWorkers(serviceTime: String = ""): Result<List<WorkerInfo>> {
-        val params = if (serviceTime.isNotBlank()) {
-            mapOf("service_time" to serviceTime)
-        } else {
-            emptyMap()
-        }
-        return when (val result = get("/api/workers", params)) {
-            is Result.Success -> {
-                try {
-                    val response = json.decodeFromString<ApiResponse<WorkerListResponse>>(result.data)
-                    if (response.data != null) {
-                        Result.Success(response.data.workers)
-                    } else {
-                        Result.Error(response.message)
-                    }
-                } catch (e: Exception) {
-                    Result.Error("数据解析失败：${e.message}")
-                }
-            }
-            is Result.Error -> result
+        val params = if (serviceTime.isNotBlank()) mapOf("service_time" to serviceTime) else emptyMap()
+        return when (val r = get("/api/workers", params)) {
+            is Result.Success -> try {
+                val resp = json.decodeFromString<ApiResponse<WorkerListResponse>>(r.data)
+                if (resp.data != null) Result.Success(resp.data.workers) else Result.Error(resp.message)
+            } catch (e: Exception) { Result.Error("数据解析失败：${e.message}") }
+            is Result.Error -> r
             is Result.Loading -> Result.Loading
         }
     }
 
-    // ==================== 订单API ====================
+    // ==================== 订单 ====================
+
+    suspend fun createOrder(request: CreateOrderRequest): Result<CreateOrderResponse> = when (val r = postJson("/api/orders/create", request)) {
+        is Result.Success -> try {
+            val resp = json.decodeFromString<ApiResponse<CreateOrderResponse>>(r.data)
+            if (resp.data != null) Result.Success(resp.data) else Result.Error(resp.message)
+        } catch (e: Exception) { Result.Error("数据解析失败：${e.message}") }
+        is Result.Error -> r
+        is Result.Loading -> Result.Loading
+    }
 
     /**
-     * 创建订单（手动下单）
-     * POST /api/orders/create
+     * 创建品类订单 - 通过 FastAPI 自动查询优惠券、规格、价格
      */
-    suspend fun createOrder(request: CreateOrderRequest): Result<CreateOrderResponse> {
-        return when (val result = post("/api/orders/create", request)) {
-            is Result.Success -> {
-                try {
-                    val response = json.decodeFromString<ApiResponse<CreateOrderResponse>>(result.data)
-                    if (response.data != null) {
-                        Result.Success(response.data)
-                    } else {
-                        Result.Error(response.message)
-                    }
-                } catch (e: Exception) {
-                    Result.Error("数据解析失败：${e.message}")
-                }
-            }
-            is Result.Error -> result
+    suspend fun createCategoryOrder(request: CategoryOrderRequest): Result<String> {
+        // 把 categoryName 转成 FastAPI 期望的 service_type
+        val body = mapOf(
+            "mobile" to request.mobile,
+            "address" to request.address,
+            "service_type" to request.categoryName,
+            "spec_name" to request.spec,
+            "service_time" to request.serviceTime,
+            "assign_mode" to (if (request.assignMode == "manual") "assign" else "auto"),
+            "seller_mobile" to (request.sellerMobile ?: ""),
+            "detail_text" to (request.remark ?: "")
+        )
+        return when (val r = postMap("/api/orders/category", body)) {
+            is Result.Success -> try {
+                val resp = json.decodeFromString<ApiResponse<Map<String, String>>>(r.data)
+                if (resp.code == 0 && resp.data != null) {
+                    Result.Success(resp.data["orderNo"] ?: resp.data["order_no"] ?: resp.data["orderId"] ?: "下单成功")
+                } else Result.Error(resp.message)
+            } catch (e: Exception) { Result.Error("数据解析失败：${e.message}") }
+            is Result.Error -> r
             is Result.Loading -> Result.Loading
         }
     }
 
-    /**
-     * 查询订单列表
-     * GET /api/orders?phone=xxx&page=1&size=20
-     */
-    suspend fun queryOrders(
-        phone: String,
-        page: Int = 1,
-        size: Int = 20
-    ): Result<List<OrderInfo>> {
-        return when (val result = get(
-            "/api/orders",
-            mapOf("phone" to phone, "page" to page.toString(), "size" to size.toString())
-        )) {
-            is Result.Success -> {
-                try {
-                    val response = json.decodeFromString<ApiResponse<OrderListResponse>>(result.data)
-                    if (response.data != null) {
-                        Result.Success(response.data.orders)
-                    } else {
-                        Result.Error(response.message)
-                    }
-                } catch (e: Exception) {
-                    Result.Error("数据解析失败：${e.message}")
-                }
-            }
-            is Result.Error -> result
-            is Result.Loading -> Result.Loading
-        }
+    suspend fun queryOrders(phone: String, page: Int = 1, size: Int = 20): Result<List<OrderInfo>> = when (val r = get("/api/orders",
+        mapOf("phone" to phone, "page" to page.toString(), "size" to size.toString())
+    )) {
+        is Result.Success -> try {
+            val resp = json.decodeFromString<ApiResponse<OrderListResponse>>(r.data)
+            if (resp.data != null) Result.Success(resp.data.orders) else Result.Error(resp.message)
+        } catch (e: Exception) { Result.Error("数据解析失败：${e.message}") }
+        is Result.Error -> r
+        is Result.Loading -> Result.Loading
     }
 
-    /**
-     * 查询订单详情
-     * GET /api/orders/{order_id}
-     */
-    suspend fun queryOrderDetail(orderId: String): Result<OrderInfo> {
-        return when (val result = get("/api/orders/$orderId")) {
-            is Result.Success -> {
-                try {
-                    val response = json.decodeFromString<ApiResponse<OrderInfo>>(result.data)
-                    if (response.data != null) {
-                        Result.Success(response.data)
-                    } else {
-                        Result.Error(response.message)
-                    }
-                } catch (e: Exception) {
-                    Result.Error("数据解析失败：${e.message}")
-                }
-            }
-            is Result.Error -> result
-            is Result.Loading -> Result.Loading
-        }
+    suspend fun queryOrderDetail(orderId: String): Result<OrderInfo> = when (val r = get("/api/orders/$orderId")) {
+        is Result.Success -> try {
+            val resp = json.decodeFromString<ApiResponse<OrderInfo>>(r.data)
+            if (resp.data != null) Result.Success(resp.data) else Result.Error(resp.message)
+        } catch (e: Exception) { Result.Error("数据解析失败：${e.message}") }
+        is Result.Error -> r
+        is Result.Loading -> Result.Loading
     }
 
-    // ==================== 现金结算API ====================
-
-    /**
-     * 查询订单现金信息
-     * GET /api/cash/info?order_no=xxx
-     */
-    suspend fun queryCashInfo(orderNo: String): Result<CashSettleInfo> {
-        return when (val result = get("/api/cash/info", mapOf("order_no" to orderNo))) {
-            is Result.Success -> {
-                try {
-                    val response = json.decodeFromString<ApiResponse<CashSettleInfo>>(result.data)
-                    if (response.data != null) {
-                        Result.Success(response.data)
-                    } else {
-                        Result.Error(response.message)
-                    }
-                } catch (e: Exception) {
-                    Result.Error("数据解析失败：${e.message}")
-                }
-            }
-            is Result.Error -> result
-            is Result.Loading -> Result.Loading
-        }
+    suspend fun getMobileByOrder(orderId: String): Result<String> = when (val r = get("/api/orders/$orderId/mobile")) {
+        is Result.Success -> try {
+            val resp = json.decodeFromString<ApiResponse<Map<String, String>>>(r.data)
+            if (resp.code == 0 && resp.data != null) {
+                Result.Success(resp.data["mobile"] ?: resp.data["phone"] ?: "")
+            } else Result.Error(resp.message)
+        } catch (e: Exception) { Result.Error("数据解析失败：${e.message}") }
+        is Result.Error -> r
+        is Result.Loading -> Result.Loading
     }
 
-    /**
-     * 确认现金结算
-     * POST /api/cash/settle
-     */
-    suspend fun settleCash(orderNo: String): Result<CashSettleResponse> {
-        val body = mapOf("order_no" to orderNo)
-        return when (val result = post("/api/cash/settle", body)) {
-            is Result.Success -> {
-                try {
-                    val response = json.decodeFromString<ApiResponse<CashSettleResponse>>(result.data)
-                    if (response.data != null) {
-                        Result.Success(response.data)
-                    } else {
-                        Result.Error(response.message)
-                    }
-                } catch (e: Exception) {
-                    Result.Error("数据解析失败：${e.message}")
-                }
-            }
-            is Result.Error -> result
-            is Result.Loading -> Result.Loading
-        }
+    suspend fun queryCycleBySellerAndMobile(sellerId: String, mobile: String, weekType: String = "1"): Result<CycleInfo> = when (val r = get("/api/cycle/query",
+        mapOf("seller_id" to sellerId, "mobile" to mobile, "week_type" to weekType)
+    )) {
+        is Result.Success -> try {
+            val resp = json.decodeFromString<ApiResponse<CycleInfo>>(r.data)
+            if (resp.code == 0 && resp.data != null) Result.Success(resp.data) else Result.Error(resp.message)
+        } catch (e: Exception) { Result.Error("数据解析失败：${e.message}") }
+        is Result.Error -> r
+        is Result.Loading -> Result.Loading
     }
 
-    // ==================== 统计API（预留） ====================
+    // ==================== 现金结算 ====================
 
-    /**
-     * 获取今日统计信息
-     * GET /api/stats/today
-     */
-    suspend fun getTodayStats(): Result<Map<String, Any>> {
-        return when (val result = get("/api/stats/today")) {
-            is Result.Success -> {
-                try {
-                    val response = json.decodeFromString<ApiResponse<Map<String, Any>>>(result.data)
-                    if (response.data != null) {
-                        Result.Success(response.data)
-                    } else {
-                        Result.Error(response.message)
-                    }
-                } catch (e: Exception) {
-                    Result.Error("数据解析失败：${e.message}")
-                }
-            }
-            is Result.Error -> result
-            is Result.Loading -> Result.Loading
-        }
+    suspend fun queryCashInfo(orderNo: String): Result<CashSettleInfo> = when (val r = get("/api/cash/info", mapOf("order_no" to orderNo))) {
+        is Result.Success -> try {
+            val resp = json.decodeFromString<ApiResponse<CashSettleInfo>>(r.data)
+            if (resp.data != null) Result.Success(resp.data) else Result.Error(resp.message)
+        } catch (e: Exception) { Result.Error("数据解析失败：${e.message}") }
+        is Result.Error -> r
+        is Result.Loading -> Result.Loading
+    }
+
+    suspend fun settleCash(orderNo: String): Result<CashSettleResponse> = when (val r = postMap("/api/cash/settle", mapOf("order_no" to orderNo))) {
+        is Result.Success -> try {
+            val resp = json.decodeFromString<ApiResponse<CashSettleResponse>>(r.data)
+            if (resp.data != null) Result.Success(resp.data) else Result.Error(resp.message)
+        } catch (e: Exception) { Result.Error("数据解析失败：${e.message}") }
+        is Result.Error -> r
+        is Result.Loading -> Result.Loading
     }
 }
