@@ -17,7 +17,7 @@ data class OrderUiState(
     // 当前步骤（0-3）
     val currentStep: Int = 0,
 
-    // 订单类型：0-单次单 1-周期单
+    // 订单类型：0-单次单 1-周期单 2-品类单
     val orderType: Int = 0,
 
     // Step1：手机号和套餐
@@ -62,12 +62,67 @@ class OrderViewModel : ViewModel() {
     // ==================== 步骤控制 ====================
 
     /**
-     * 下一步
+     * 下一步 - 包含验证逻辑
      */
-    fun nextStep() {
-        if (uiState.currentStep < 3) {
-            uiState = uiState.copy(currentStep = uiState.currentStep + 1)
+    fun nextStep(): Boolean {
+        val state = uiState
+
+        // 根据当前步骤进行验证
+        val canProceed = when (state.currentStep) {
+            0 -> {
+                // Step1验证：必须输入有效手机号并选择套餐
+                when {
+                    state.phone.isBlank() -> {
+                        uiState = uiState.copy(errorMessage = "请输入手机号")
+                        false
+                    }
+                    state.phone.length != 11 -> {
+                        uiState = uiState.copy(errorMessage = "请输入正确的11位手机号")
+                        false
+                    }
+                    state.selectedPackage == null -> {
+                        uiState = uiState.copy(errorMessage = "请先查询并选择套餐")
+                        false
+                    }
+                    else -> true
+                }
+            }
+            1 -> {
+                // Step2验证：必须选择或输入地址
+                val hasAddress = state.selectedAddress != null || state.customAddress.isNotBlank()
+                if (!hasAddress) {
+                    uiState = uiState.copy(errorMessage = "请选择已有地址或输入新地址")
+                    false
+                } else {
+                    true
+                }
+            }
+            2 -> {
+                // Step3验证：必须选择服务日期和时间
+                when {
+                    state.serviceDate.isBlank() -> {
+                        uiState = uiState.copy(errorMessage = "请选择服务日期")
+                        false
+                    }
+                    state.serviceTime.isBlank() -> {
+                        uiState = uiState.copy(errorMessage = "请选择服务时间")
+                        false
+                    }
+                    state.assignType == 1 && state.selectedWorker == null -> {
+                        uiState = uiState.copy(errorMessage = "请选择保洁师")
+                        false
+                    }
+                    else -> true
+                }
+            }
+            else -> true
         }
+
+        if (canProceed && state.currentStep < 3) {
+            uiState = uiState.copy(currentStep = state.currentStep + 1, errorMessage = null)
+        }
+
+        return canProceed
     }
 
     /**
@@ -75,7 +130,7 @@ class OrderViewModel : ViewModel() {
      */
     fun previousStep() {
         if (uiState.currentStep > 0) {
-            uiState = uiState.copy(currentStep = uiState.currentStep - 1)
+            uiState = uiState.copy(currentStep = uiState.currentStep - 1, errorMessage = null)
         }
     }
 
@@ -94,7 +149,9 @@ class OrderViewModel : ViewModel() {
      * 更新手机号
      */
     fun updatePhone(phone: String) {
-        uiState = uiState.copy(phone = phone)
+        // 只保留数字，限制11位
+        val cleanPhone = phone.filter { it.isDigit() }.take(11)
+        uiState = uiState.copy(phone = cleanPhone, errorMessage = null)
     }
 
     /**
@@ -115,6 +172,9 @@ class OrderViewModel : ViewModel() {
                         isLoadingPackages = false,
                         packages = result.data
                     )
+                    if (result.data.isEmpty()) {
+                        uiState = uiState.copy(errorMessage = "未找到可用套餐，请检查手机号是否正确")
+                    }
                 }
                 is Result.Error -> {
                     uiState = uiState.copy(
@@ -131,7 +191,7 @@ class OrderViewModel : ViewModel() {
      * 选择套餐
      */
     fun selectPackage(pkg: PackageInfo) {
-        uiState = uiState.copy(selectedPackage = pkg)
+        uiState = uiState.copy(selectedPackage = pkg, errorMessage = null)
     }
 
     // ==================== Step2：地址和分配方式 ====================
@@ -161,21 +221,26 @@ class OrderViewModel : ViewModel() {
      * 选择地址
      */
     fun selectAddress(address: AddressInfo) {
-        uiState = uiState.copy(selectedAddress = address)
+        uiState = uiState.copy(selectedAddress = address, customAddress = "", errorMessage = null)
     }
 
     /**
      * 更新自定义地址
      */
     fun updateCustomAddress(address: String) {
-        uiState = uiState.copy(customAddress = address)
+        // 如果输入了自定义地址，清除已选择的地址
+        if (address.isNotBlank()) {
+            uiState = uiState.copy(customAddress = address, selectedAddress = null, errorMessage = null)
+        } else {
+            uiState = uiState.copy(customAddress = address, errorMessage = null)
+        }
     }
 
     /**
      * 设置分配方式
      */
     fun setAssignType(type: Int) {
-        uiState = uiState.copy(assignType = type)
+        uiState = uiState.copy(assignType = type, errorMessage = null)
     }
 
     // ==================== Step3：时间和保洁师 ====================
@@ -184,14 +249,18 @@ class OrderViewModel : ViewModel() {
      * 设置服务日期
      */
     fun setServiceDate(date: String) {
-        uiState = uiState.copy(serviceDate = date)
+        uiState = uiState.copy(serviceDate = date, errorMessage = null)
     }
 
     /**
      * 设置服务时间
      */
     fun setServiceTime(time: String) {
-        uiState = uiState.copy(serviceTime = time)
+        uiState = uiState.copy(serviceTime = time, errorMessage = null)
+        // 如果选择了指定保洁师，自动查询可用保洁师
+        if (uiState.assignType == 1 && uiState.serviceDate.isNotBlank()) {
+            queryWorkers()
+        }
     }
 
     /**
@@ -207,6 +276,9 @@ class OrderViewModel : ViewModel() {
                         isLoadingWorkers = false,
                         workers = result.data
                     )
+                    if (result.data.isEmpty()) {
+                        uiState = uiState.copy(errorMessage = "该时段暂无可用保洁师，请选择其他时间")
+                    }
                 }
                 is Result.Error -> {
                     uiState = uiState.copy(
@@ -223,7 +295,11 @@ class OrderViewModel : ViewModel() {
      * 选择保洁师
      */
     fun selectWorker(worker: WorkerInfo) {
-        uiState = uiState.copy(selectedWorker = worker)
+        if (worker.available) {
+            uiState = uiState.copy(selectedWorker = worker, errorMessage = null)
+        } else {
+            uiState = uiState.copy(errorMessage = "该保洁师当前不可用，请选择其他保洁师")
+        }
     }
 
     // ==================== 确认下单 ====================
