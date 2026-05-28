@@ -29,20 +29,18 @@ private data class QuickAction(
 
 /**
  * 首页 - 主界面
- *
- * 功能：
- * - 顶部App名称 + Cookie状态指示灯
- * - 4个快捷操作卡片
- * - 底部统计信息区域
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
     onNavigateToOrder: () -> Unit = {},
+    onNavigateToCategoryOrder: () -> Unit = {},
     onNavigateToHistory: () -> Unit = {},
     onNavigateToCashSettle: () -> Unit = {},
     onNavigateToSettings: () -> Unit = {},
-    onNavigateToSellerSearch: () -> Unit = {}
+    onNavigateToSellerSearch: () -> Unit = {},
+    onNavigateToOrderDetail: () -> Unit = {},
+    onNavigateToCycleQuery: () -> Unit = {}
 ) {
     val prefsManager = DjApp.instance.prefsManager
     var cookieValid by remember { mutableStateOf(prefsManager.isCookieValid) }
@@ -61,7 +59,19 @@ fun HomeScreen(
                 title = "品类下单",
                 icon = Icons.Default.Category,
                 color = androidx.compose.ui.graphics.Color(0xFF2E7D32),
-                onClick = onNavigateToOrder
+                onClick = onNavigateToCategoryOrder
+            ),
+            QuickAction(
+                title = "订单详情",
+                icon = Icons.Default.Description,
+                color = androidx.compose.ui.graphics.Color(0xFF00897B),
+                onClick = onNavigateToOrderDetail
+            ),
+            QuickAction(
+                title = "周期查询",
+                icon = Icons.Default.DateRange,
+                color = androidx.compose.ui.graphics.Color(0xFFE65100),
+                onClick = onNavigateToCycleQuery
             ),
             QuickAction(
                 title = "订单查询",
@@ -95,10 +105,7 @@ fun HomeScreen(
             TopAppBar(
                 title = {
                     Column {
-                        Text(
-                            text = "到家保洁",
-                            fontWeight = FontWeight.Bold
-                        )
+                        Text(text = "到家保洁", fontWeight = FontWeight.Bold)
                         Text(
                             text = "内部下单系统",
                             style = MaterialTheme.typography.bodySmall,
@@ -110,12 +117,10 @@ fun HomeScreen(
                     containerColor = MaterialTheme.colorScheme.primary
                 ),
                 actions = {
-                    // Cookie状态指示灯
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier.padding(end = 16.dp)
                     ) {
-                        // 状态灯
                         Surface(
                             modifier = Modifier.size(10.dp),
                             shape = MaterialTheme.shapes.extraSmall,
@@ -142,21 +147,14 @@ fun HomeScreen(
             if (!cookieValid) {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(
-                        containerColor = Error.copy(alpha = 0.1f)
-                    ),
+                    colors = CardDefaults.cardColors(containerColor = Error.copy(alpha = 0.1f)),
                     onClick = { showCookieDialog = true }
                 ) {
                     Row(
                         modifier = Modifier.padding(16.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(
-                            Icons.Default.Warning,
-                            contentDescription = null,
-                            tint = Error,
-                            modifier = Modifier.size(24.dp)
-                        )
+                        Icon(Icons.Default.Warning, contentDescription = null, tint = Error, modifier = Modifier.size(24.dp))
                         Spacer(modifier = Modifier.width(12.dp))
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
@@ -171,17 +169,12 @@ fun HomeScreen(
                                 color = TextSecondary
                             )
                         }
-                        Icon(
-                            Icons.Default.KeyboardArrowRight,
-                            contentDescription = null,
-                            tint = TextSecondary
-                        )
+                        Icon(Icons.Default.KeyboardArrowRight, contentDescription = null, tint = TextSecondary)
                     }
                 }
                 Spacer(modifier = Modifier.height(16.dp))
             }
 
-            // 快捷操作区域标题
             Text(
                 text = "快捷操作",
                 style = MaterialTheme.typography.titleMedium,
@@ -189,7 +182,6 @@ fun HomeScreen(
                 modifier = Modifier.padding(bottom = 12.dp)
             )
 
-            // 快捷操作网格（2列）
             LazyVerticalGrid(
                 columns = GridCells.Fixed(2),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -203,17 +195,12 @@ fun HomeScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // 底部统计信息区域
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(
-                    containerColor = PrimaryContainer.copy(alpha = 0.3f)
-                )
+                colors = CardDefaults.cardColors(containerColor = PrimaryContainer.copy(alpha = 0.3f))
             ) {
                 Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
+                    modifier = Modifier.fillMaxWidth().padding(16.dp),
                     horizontalArrangement = Arrangement.SpaceEvenly
                 ) {
                     StatItem(label = "今日下单", value = "0单")
@@ -226,7 +213,6 @@ fun HomeScreen(
         }
     }
 
-    // Cookie无效提示对话框
     if (showCookieDialog) {
         AlertDialog(
             onDismissRequest = { showCookieDialog = false },
@@ -249,35 +235,24 @@ fun HomeScreen(
     }
 }
 
-/**
- * 快捷操作卡片
- */
 @Composable
 private fun QuickActionCard(action: QuickAction) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = Surface
-        ),
+        colors = CardDefaults.cardColors(containerColor = Surface),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
         onClick = action.onClick
     ) {
         Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(20.dp),
+            modifier = Modifier.fillMaxWidth().padding(20.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // 图标圆形背景
             Surface(
                 modifier = Modifier.size(56.dp),
                 shape = MaterialTheme.shapes.medium,
                 color = action.color.copy(alpha = 0.1f)
             ) {
-                Box(
-                    contentAlignment = Alignment.Center,
-                    modifier = Modifier.fillMaxSize()
-                ) {
+                Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
                     Icon(
                         imageVector = action.icon,
                         contentDescription = action.title,
@@ -287,32 +262,16 @@ private fun QuickActionCard(action: QuickAction) {
                 }
             }
             Spacer(modifier = Modifier.height(12.dp))
-            Text(
-                text = action.title,
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.Medium
-            )
+            Text(text = action.title, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
         }
     }
 }
 
-/**
- * 统计项
- */
 @Composable
 private fun StatItem(label: String, value: String) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(
-            text = value,
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold,
-            color = Primary
-        )
+        Text(text = value, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = Primary)
         Spacer(modifier = Modifier.height(4.dp))
-        Text(
-            text = label,
-            style = MaterialTheme.typography.bodySmall,
-            color = TextSecondary
-        )
+        Text(text = label, style = MaterialTheme.typography.bodySmall, color = TextSecondary)
     }
 }
