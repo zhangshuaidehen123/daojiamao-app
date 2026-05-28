@@ -29,6 +29,7 @@ import com.daojia.app.ui.theme.*
  * Step3：选择服务时间 -> 选择保洁师
  * 确认页：展示所有选择的信息 -> 确认下单
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun OrderScreen(
     onBack: () -> Unit = {},
@@ -185,7 +186,7 @@ private fun RowScope.StepItem(
             color = when {
                 isCompleted -> Success
                 isActive -> Primary
-                else -> com.daojia.app.ui.theme.Divider
+                else -> Divider
             },
             modifier = Modifier.size(32.dp)
         ) {
@@ -245,11 +246,42 @@ private fun OrderTypeToggle(
                 { Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(18.dp)) }
             } else null
         )
+        FilterChip(
+            selected = orderType == 2,
+            onClick = { onOrderTypeChange(2) },
+            label = { Text("品类单") },
+            leadingIcon = if (orderType == 2) {
+                { Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(18.dp)) }
+            } else null
+        )
     }
 }
 
 /**
- * Step1：输入手机号 -> 查询套餐 -> 选择套餐
+ * 品类数据类
+ */
+private data class CategoryInfo(
+    val category_id: String,
+    val category_name: String,
+    val description: String,
+    val price: Double,
+    val icon: String
+)
+
+/**
+ * 品类列表（模拟数据）
+ */
+private val mockCategories = listOf(
+    CategoryInfo("1", "空调清洗", "挂机、柜机、中央空调清洗消毒", 129.0, "ac_unit"),
+    CategoryInfo("2", "洗衣机清洗", "滚筒、波轮洗衣机拆洗", 99.0, "local_laundry_service"),
+    CategoryInfo("3", "冰箱清洗", "冰箱除味、消毒、除霜", 119.0, "kitchen"),
+    CategoryInfo("4", "油烟机清洗", "油烟机深度拆洗除油", 159.0, "microscope"),
+    CategoryInfo("5", "热水器清洗", "电热水器、燃气热水器清洗", 89.0, "hot_tub"),
+    CategoryInfo("6", "微波炉清洗", "微波炉内部深度清洁", 69.0, "microwave"),
+)
+
+/**
+ * Step1：输入手机号 -> 选择品类/查询套餐
  */
 @Composable
 private fun Step1Content(viewModel: OrderViewModel) {
@@ -289,43 +321,121 @@ private fun Step1Content(viewModel: OrderViewModel) {
         )
         Spacer(modifier = Modifier.height(12.dp))
 
-        // 查询套餐按钮
-        Button(
-            onClick = { viewModel.queryPackages() },
-            modifier = Modifier.fillMaxWidth(),
-            enabled = state.phone.length == 11 && !state.isLoadingPackages
-        ) {
-            if (state.isLoadingPackages) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(20.dp),
-                    color = OnPrimary,
-                    strokeWidth = 2.dp
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("查询中...")
-            } else {
-                Icon(Icons.Default.Search, contentDescription = null, modifier = Modifier.size(18.dp))
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("查询套餐")
-            }
-        }
-
-        // 套餐列表
-        if (state.packages.isNotEmpty()) {
-            Spacer(modifier = Modifier.height(16.dp))
+        // 根据订单类型显示不同内容
+        if (state.orderType == 2) {
+            // 品类单：显示品类选择
             Text(
-                text = "选择套餐",
+                text = "选择品类",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold
             )
             Spacer(modifier = Modifier.height(8.dp))
-            state.packages.forEach { pkg ->
-                PackageCard(
-                    pkg = pkg,
-                    isSelected = state.selectedPackage?.package_id == pkg.package_id,
-                    onSelect = { viewModel.selectPackage(pkg) }
+            mockCategories.forEach { category ->
+                CategoryCard(
+                    category = category,
+                    isSelected = state.selectedPackage?.package_id == "cat_${category.category_id}",
+                    onSelect = {
+                        viewModel.selectPackage(
+                            PackageInfo(
+                                package_id = "cat_${category.category_id}",
+                                package_name = category.category_name,
+                                description = category.description,
+                                duration = 120,
+                                price = category.price
+                            )
+                        )
+                    }
                 )
                 Spacer(modifier = Modifier.height(8.dp))
+            }
+        } else {
+            // 普通单：查询套餐按钮
+            Button(
+                onClick = { viewModel.queryPackages() },
+                modifier = Modifier.fillMaxWidth(),
+                enabled = state.phone.length == 11 && !state.isLoadingPackages
+            ) {
+                if (state.isLoadingPackages) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(20.dp),
+                        color = OnPrimary,
+                        strokeWidth = 2.dp
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("查询中...")
+                } else {
+                    Icon(Icons.Default.Search, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("查询套餐")
+                }
+            }
+
+            // 套餐列表
+            if (state.packages.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    text = "选择套餐",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                state.packages.forEach { pkg ->
+                    PackageCard(
+                        pkg = pkg,
+                        isSelected = state.selectedPackage?.package_id == pkg.package_id,
+                        onSelect = { viewModel.selectPackage(pkg) }
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
+            }
+        }
+    }
+}
+
+/**
+ * 品类卡片
+ */
+@Composable
+private fun CategoryCard(
+    category: CategoryInfo,
+    isSelected: Boolean,
+    onSelect: () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        border = if (isSelected) BorderStroke(2.dp, Primary) else null,
+        colors = CardDefaults.cardColors(
+            containerColor = if (isSelected) PrimaryContainer.copy(alpha = 0.3f) else Surface
+        ),
+        onClick = onSelect
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = category.category_name,
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.Medium
+                )
+                Text(
+                    text = category.description,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = TextSecondary
+                )
+            }
+            Text(
+                text = "%.0f元".format(category.price),
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+                color = Primary
+            )
+            if (isSelected) {
+                Spacer(modifier = Modifier.width(8.dp))
+                Icon(Icons.Default.CheckCircle, contentDescription = null, tint = Primary)
             }
         }
     }
@@ -421,7 +531,7 @@ private fun Step2Content(viewModel: OrderViewModel) {
                 )
                 Spacer(modifier = Modifier.height(8.dp))
             }
-            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+            Divider(modifier = Modifier.padding(vertical = 8.dp))
         }
 
         // 自定义地址输入
@@ -892,7 +1002,7 @@ private fun ConfirmRow(label: String, value: String) {
 private fun BottomActions(
     currentStep: Int,
     isLoading: Boolean,
-    onNext: () -> Unit,
+    onNext: () -> Boolean,
     onPrevious: () -> Unit,
     onSubmit: () -> Unit,
     modifier: Modifier = Modifier
@@ -902,7 +1012,9 @@ private fun BottomActions(
         color = MaterialTheme.colorScheme.surface
     ) {
         Row(
-            modifier = modifier.fillMaxWidth(),
+            modifier = modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 12.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             // 上一步按钮（第一步不显示）
@@ -918,7 +1030,7 @@ private fun BottomActions(
             // 下一步/确认下单按钮
             if (currentStep < 3) {
                 Button(
-                    onClick = onNext,
+                    onClick = { onNext() },
                     modifier = Modifier.weight(1f),
                     enabled = !isLoading
                 ) {
@@ -933,7 +1045,7 @@ private fun BottomActions(
                     if (isLoading) {
                         CircularProgressIndicator(
                             modifier = Modifier.size(20.dp),
-                            color = OnPrimary,
+                            color = MaterialTheme.colorScheme.onPrimary,
                             strokeWidth = 2.dp
                         )
                         Spacer(modifier = Modifier.width(8.dp))
