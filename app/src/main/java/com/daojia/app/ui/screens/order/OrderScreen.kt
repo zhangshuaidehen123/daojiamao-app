@@ -339,6 +339,9 @@ private fun Step1Content(viewModel: OrderViewModel) {
                             PackageInfo(
                                 package_id = "cat_${category.category_id}",
                                 package_name = category.category_name,
+                                remaining_count = 1,
+                                total_count = 1,
+                                expire_date = "",
                                 description = category.description,
                                 duration = 120,
                                 price = category.price
